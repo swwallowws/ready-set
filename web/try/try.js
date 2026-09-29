@@ -9,7 +9,7 @@ import { demoShell } from "../shared/vendor/design/demoshell.js";
 import { valueBox } from "../shared/vendor/design/valuebox.js";
 import { iconButton } from "../shared/vendor/design/iconbutton.js";
 import { searchCatalog } from "./search.js";
-import { midiPlayer, rollView, soundfontBytes } from "../shared/midiplay.js";
+import { midiPlayer, rollView, seekOnRoll, soundfontBytes } from "../shared/midiplay.js";
 
 const $ = (id) => document.getElementById(id);
 const HINTS = ["Greensleeves", "Bach", "Satie"];
@@ -61,7 +61,7 @@ soundfontBytes().catch(() => { /* tried again on the first pick */ });
 // for checks: is it heard, where is it
 window.readySetPlayer = { peak: () => player.peak(), get time() { return player.time; },
                           get playing() { return player.playing; }, get beat() { return player.beatAt(player.time); },
-                          get page() { return roll.page; } };
+                          get page() { return roll.page; }, get head() { return roll.head; } };
 
 function stopPreview() { player.halt(); }
 // Space (the shell's primary toggle): play or pause. The key press is a user
@@ -240,6 +240,7 @@ async function pick(r, el) {
 // ---- the roll: eight bars at a time, drawn with the shared TabridgeRoll, paging on
 // with the playhead (shared/midiplay.js rollView) -------------------------------------
 const roll = rollView($("roll"), { beats: ROLL_BEATS });
+seekOnRoll($("roll"), roll, player);   // click or drag on the roll moves the playhead
 function setRollSong() {
   if (!current || $("picked").hidden) return;
   roll.setSong(trBox.value === 0 ? current.song : JSON.parse(midi_build_notes_json(current.bytes, trBox.value)));

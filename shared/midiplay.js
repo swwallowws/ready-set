@@ -11,10 +11,12 @@
 //   player.time, player.duration, player.playing, player.peak(), player.beatAt(seconds)
 //
 //   const roll = rollView(canvas);  roll.setSong(notesJson);  roll.draw(beat | null);
+//   seekOnRoll(canvas, roll, player);  // click or drag on the roll moves the playhead
 //
 // The bank is fetched once and kept in the Cache API; bump SF_VERSION when a design sync
 // changes gm.sf3.
 import { iconButton } from "./vendor/design/iconbutton.js";
+import { seekable, clampTime } from "./vendor/design/playhead.js";
 
 const VENDOR = new URL("./vendor/design/sound/spessasynth/", import.meta.url);
 const SF_VERSION = "1";
@@ -79,8 +81,12 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
   function paintSeek(frac) {
     seekWrap.style.setProperty("--fill", `${(Math.max(0, Math.min(1, frac)) * 100).toFixed(2)}%`);
   }
+  // While the roll is dragged during playback, the head (and the slider) show the
+  // pointer's time and the sound keeps going until the drag lets go (scrub / endScrub).
+  let scrubAt = null;
+  const shown = () => (scrubAt ?? p.time);
   function paint() {
-    const d = p.duration, t = Math.min(p.time, d || 0);
+    const d = p.duration, t = Math.min(shown(), d || 0);
     if (!dragging) { seek.value = String(d ? Math.round((t / d) * 1000) : 0); paintSeek(d ? t / d : 0); }
     clock.textContent = `${fmt(t)} / ${fmt(d)}`;
     seek.setAttribute("aria-valuetext", `${fmt(t)} of ${fmt(d)}`);
@@ -89,12 +95,29 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
     playBtn.el.disabled = off; stopBtn.el.disabled = off; seek.disabled = off;
   }
 
+  // spessasynth's Sequencer moves its time on the audio thread: after `currentTime = t`
+  // its getter still gives the old time until the audio thread answers with a
+  // "timeChange" (a frame or so later). Until then the player reports the target, so
+  // nothing draws the head back at the old place (a flash, or for a quick paused click
+  // the old place for good).
+  let target = null, targetUntil = 0;
+  function setTime(t) {
+    target = Math.max(0, Math.min(t, p._duration));
+    targetUntil = performance.now() + 1000;           // in case no answer ever comes
+    p.seq.currentTime = target;
+  }
+  function timeChanged(t) {
+    if (target == null || Math.abs(t - target) > 1e-3) return;   // an older seek's answer
+    target = null;
+    if (!p.playing && p.loaded) { paint(); onTick?.(p.time); }
+  }
+
   let raf = 0;
   function loop() {
     cancelAnimationFrame(raf);
     const step = () => {
       paint();
-      onTick?.(p.time);
+      onTick?.(shown());
       if (p.playing) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
@@ -127,6 +150,7 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
         this.synth = synth;
         this.seq = new lib.Sequencer(synth, { skipToFirstNoteOn: false });
         this.seq.eventHandler.addEvent("songEnded", "midiplay", () => this.ended());
+        this.seq.eventHandler.addEvent("timeChange", "midiplay", timeChanged);
       })();
       this.ready.catch(() => { this.ready = null; });       // a failed load can be tried again
       return this.ready;
@@ -153,14 +177,18 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
       try { this.midi = await this.seq.getMIDI(); } catch { this.midi = null; }
       if (my !== this.op) return false;
       this._duration = this._duration || this.midi?.duration || 0;
-      this.seq.currentTime = 0;
+      setTime(0);
       this.seq.pause();
       this.loaded = true;
       paint();
       return true;
     },
     get duration() { return this._duration; },
-    get time() { return this.seq && this.loaded ? Math.max(0, Math.min(this.seq.currentTime, this._duration)) : 0; },
+    get time() {
+      if (!this.seq || !this.loaded) return 0;
+      if (target != null && performance.now() < targetUntil) return target;   // a seek on its way
+      return Math.max(0, Math.min(this.seq.currentTime, this._duration));
+    },
     /** a moment in seconds as beats (quarter notes), through the file's own tempo map */
     beatAt(t) {
       if (this.midi) {
@@ -168,11 +196,35 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
       }
       return t * 2;                                  // 120 bpm, the MIDI default
     },
+    /** beats (quarter notes) as seconds: the other way round from beatAt */
+    secondsAt(beat) {
+      if (this.midi) {
+        try { return this.midi.midiTicksToSeconds(beat * this.midi.timeDivision); } catch { /* fall through */ }
+      }
+      return beat / 2;
+    },
+    /** the head is being dragged to t: paused, the place moves there (Play starts from
+     *  it); playing, only the head and the slider follow, and endScrub moves the sound */
+    scrub(t) {
+      if (!this.loaded) return;
+      if (!this.playing) { scrubAt = null; this.seek(t); return; }
+      scrubAt = clampTime(t, this._duration);
+      paint();
+      onTick?.(scrubAt);
+    },
+    /** the drag let go at t (null: a touch was taken over for scrolling, the sound
+     *  stays where it is) */
+    endScrub(t) {
+      scrubAt = null;
+      if (t != null) { this.seek(t); return; }
+      paint();
+      if (!this.playing) onTick?.(this.time);
+    },
     play(at) {
       if (!this.loaded) { paint(); return; }
       this.unlock();
-      if (at != null) this.seq.currentTime = Math.max(0, Math.min(at, this._duration));
-      else if (this.seq.currentTime >= this._duration - 0.05) this.seq.currentTime = 0;
+      if (at != null) setTime(at);
+      else if (this.time >= this._duration - 0.05) setTime(0);
       this.fade(1);
       this.seq.play();
       this.playing = true;
@@ -189,9 +241,10 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
     stop() {
       if (!this.loaded) return;
       this.seq.pause();
-      this.seq.currentTime = 0;
+      setTime(0);
       this.seq.pause();
       this.playing = false;
+      scrubAt = null;
       paint();
       onTick?.(null);
       onStop?.();
@@ -199,19 +252,21 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
     toggle() { this.playing ? this.pause() : this.play(); },
     seek(t) {
       if (!this.loaded) return;
-      this.seq.currentTime = Math.max(0, Math.min(t, this._duration));
+      setTime(t);
       if (!this.playing) { this.seq.pause(); paint(); onTick?.(this.time); }
     },
     /** stop without touching the bar: a new file is on its way */
     halt() {
       if (this.seq && this.loaded) this.seq.pause();
       this.playing = false;
+      scrubAt = null;
       cancelAnimationFrame(raf);
     },
     ended() {
       this.playing = false;
+      scrubAt = null;
       this.seq.pause();
-      this.seq.currentTime = 0;
+      setTime(0);
       this.seq.pause();
       paint();
       onTick?.(null);
@@ -266,6 +321,15 @@ export function rollView(canvas, { beats: span = 32 } = {}) {
       view.draw(last);
     },
     get page() { return page; },
+    /** the beat the playhead was last drawn at (null: none drawn) */
+    get head() { return last; },
+    /** the beat at `frac` (0 left edge, 1 right edge) of the page on show, kept a
+     *  hair inside it so a click at an edge doesn't turn the page */
+    beatAt(frac) {
+      const from = Math.max(0, page) * span;
+      const b = from + Math.max(0, Math.min(1, frac || 0)) * span;
+      return Math.min(from + span - 0.01, from > 0 ? Math.max(from + 0.01, b) : b);
+    },
     /** draw the page holding `beat` (null: the first page, no playhead) */
     draw(beat = null) {
       last = beat;
@@ -298,4 +362,18 @@ export function rollView(canvas, { beats: span = 32 } = {}) {
     repaint() { pal = null; view.draw(last); },
   };
   return view;
+}
+
+// ---- click or drag on the roll to move the playhead (the design system's playhead.js).
+// The press and every move go to player.scrub (paused: the place moves; playing: only the
+// head follows), the release to player.endScrub, which moves the sound once. The slider
+// follows along. Returns the function that removes it.
+export function seekOnRoll(canvas, roll, player) {
+  return seekable(canvas, {
+    enabled: () => player.loaded,
+    toTime: (x, rect) => clampTime(player.secondsAt(roll.beatAt((x - rect.left) / rect.width)), player.duration),
+    onScrub: (t) => player.scrub(t),
+    onSeek: (t) => player.endScrub(t),
+    onCancel: () => player.endScrub(null),
+  });
 }
