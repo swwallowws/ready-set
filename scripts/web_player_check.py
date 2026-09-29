@@ -1,7 +1,8 @@
 """Check the website's MIDI preview in headless Chrome (system Chrome): it plays
 through spessasynth and the shared General MIDI bank, is heard (the player's
 level meter, window.readySetPlayer.peak()), drums included, and the piano roll
-follows the playhead (it pages on, and a seek moves it). Main page and /try/.
+follows the playhead (it pages on, and a seek or a drag on the roll moves it).
+Main page and /try/.
 
 Serves web/ itself with scripts/serve.py's handler on a free port, so no server
 needs to be running. Test MIDI files and screenshots land in spike/shots/
@@ -162,6 +163,19 @@ def main():
               and page.evaluate("() => window.readySetPlayer.time") == 0, "main: Stop stops and goes back to the start")
         page.wait_for_timeout(400)
         check(page.evaluate("() => window.readySetPlayer.peak()") < 0.001, "main: silent after Stop")
+        # drag on the roll while stopped (page 0, 32 beats wide): press at a quarter, let go
+        # at half. The place moves to beat 16, it stays stopped, the slider follows (16 of 48).
+        box = page.locator("#preview-roll").bounding_box()
+        y = box["y"] + box["height"] / 2
+        page.mouse.move(box["x"] + box["width"] * 0.25, y)
+        page.mouse.down()
+        page.mouse.move(box["x"] + box["width"] * 0.5, y, steps=5)
+        page.mouse.up()
+        page.wait_for_timeout(200)
+        bd = page.evaluate("() => window.readySetPlayer.beat")
+        sv = int(page.eval_on_selector("#preview-bar input[type=range]", "el => el.value"))
+        check(abs(bd - 16) < 0.5 and not page.evaluate("() => window.readySetPlayer.playing")
+              and abs(sv - 333) <= 5, f"main: dragging on the roll moves the playhead (beat {bd:.1f}, slider {sv})")
         check(not errors, f"main: no console errors ({errors[:5]})")
 
         # ---- /try/: pick a catalogue piece, it plays, the roll follows

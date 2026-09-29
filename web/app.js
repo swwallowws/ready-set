@@ -35,7 +35,7 @@ import {
   firstFreemidiArtist, srcLabel, recLabel,
 } from "./shared/sources.js";
 import { searchCatalog } from "./try/search.js";
-import { midiPlayer, rollView } from "./shared/midiplay.js";
+import { midiPlayer, rollView, seekOnRoll } from "./shared/midiplay.js";
 import { valueBox } from "./shared/vendor/design/valuebox.js";
 
 // What this host offers: { proxy, template }. `proxy` is the proxy's base URL
@@ -448,6 +448,7 @@ function ensurePlayer() {
   player = midiPlayer($("preview-bar"), {
     onTick: (t) => roll.draw(t == null ? null : player.beatAt(t)),
   });
+  seekOnRoll($("preview-roll"), roll, player);  // click or drag on the roll moves the playhead
   window.addEventListener("resize", () => roll.draw(player.playing || player.time ? player.beatAt(player.time) : null));
   window.addEventListener("tabridge-theme", () => roll.repaint());
   window.TabridgeRoll.onSchemeChange(() => roll.repaint());
