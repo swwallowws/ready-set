@@ -12,6 +12,9 @@
      Paths stay relative so the page also works under a subpath (GitHub Pages). -->
 <link rel="stylesheet" href="./shared/vendor/design/tokens.css" />
 <link rel="stylesheet" href="./shared/vendor/design/valuebox.css" />
+<link rel="stylesheet" href="./shared/vendor/design/iconbutton.css" />
+<link rel="stylesheet" href="./shared/vendor/design/range.css" />
+<link rel="stylesheet" href="./shared/midiplay.css" />
 <script src="./shared/roll.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -95,11 +98,8 @@
   #status.err { color: var(--ink); font-weight: 600; }
   #status.err::before { content: "Error: "; }
   #player-host { margin-top: calc(var(--space) * 1.5); }
-  midi-player { width: 100%; display: block; }
-  midi-player::part(control-panel) { background: var(--ground); border: var(--hairline); border-radius: 0; }
-  midi-player::part(play-button) { color: var(--ink); background: var(--ground-2); border: var(--hairline); border-radius: 0; }
-  midi-player::part(time) { color: var(--ink-mut); font-family: var(--font-mono); }
-  midi-player::part(seek-bar) { accent-color: var(--acc); }
+  canvas#preview-roll { width: 100%; height: 160px; display: block; border: var(--hairline); }
+  #preview-bar { margin-top: var(--space); }
   #template-state { margin-top: var(--space); font: 11.5px var(--font-mono); color: var(--ink-mut); }
 
   /* online search ------------------------------------------------------------ */
@@ -263,7 +263,10 @@
         <div class="act"><button id="download" class="primary" type="button" disabled>Download</button></div>
       </div>
       <div id="status" role="status"></div>
-      <div id="player-host" hidden></div>
+      <div id="player-host" hidden>
+        <canvas id="preview-roll" aria-label="Piano roll of the preview, following the playhead"></canvas>
+        <div id="preview-bar"></div>
+      </div>
       <div id="template-state"></div>
     </div>
   </section>
@@ -297,6 +300,7 @@
 
 <script type="module">
   import { valueBox } from "./shared/vendor/design/valuebox.js";
+  import { NOTES as notes, BEATS, TOTAL, heroPlayer } from "./hero.js";
   // ---- colour mode: System / Paper / Night -----------------------------------
   // Stamps data-theme on :root (tokens.css flips color-scheme from it). ?theme=
   // or a saved choice seeds it; the canvas redraws on every change.
@@ -316,24 +320,9 @@
   setMode(param === 'paper' || param === 'night' ? param : (store.get('tabridge-mode') || ''), false);
   modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode, true)));
 
-  // ---- playable bassline demo (Web Audio + canvas) ------------------------------
-  // p = semitones above MIDI 40 (E2). v = velocity 0..1 (ghosts play quieter).
-  // bend = semitones glided to over the note, vib = vibrato hold, leg = legato
-  // from the previous note. The back half of that groove: a chug up to the
-  // octave, a legato run, a vibrato hold and a closing dive.
-  const D = -2, OCT = 10;
-  const notes = [
-    {b:0,    l:0.25, p:D,   v:1},
-    {b:0.25, l:0.25, p:D,   v:.45},
-    {b:0.5,  l:0.25, p:D,   v:.8},
-    {b:0.75, l:0.25, p:OCT, v:.75},
-    {b:1,    l:0.25, p:D,   v:.45},
-    {b:1.25, l:0.25, p:1,   v:.7,  leg:true},
-    {b:1.5,  l:0.5,  p:-1,  v:.8,  leg:true},
-    {b:2,    l:1,    p:OCT, v:.9, vib:true},
-    {b:3,    l:1,    p:D,   v:1,  bend:-4},
-  ];
-  const BEATS = 4, PMIN = -20, PMAX = 24;   // relative to E2, with room to transpose +-12
+  // ---- playable bassline demo (spessasynth + the shared bank, drawn on a canvas) --
+  // The bar, its bends and vibrato, and how it sounds live in hero.js.
+  const PMIN = -20, PMAX = 24;   // relative to E2, with room to transpose +-12
   let transpose = 0, playhead = null, pal = null;
   const canvas = document.getElementById('roll'), ctx = canvas.getContext('2d');
   const R = window.TabridgeRoll;
@@ -391,58 +380,39 @@
   valueBox(document.getElementById('tr'), {
     min: -12, max: 12, value: 0, labelledBy: 'tr-label',
     format: v => (v > 0 ? '+' : '') + v,
-    onChange: v => {
-      transpose = v; draw();
-      if (playing) activeOscs.forEach(o => { try { o.detune.setValueAtTime(transpose * 100, audio.currentTime); } catch (e) {} });
-    },
+    onChange: v => { transpose = v; draw(); hero.setTranspose(v); },   // live, also mid-bar
   });
 
-  // audible playback (legato groups, live transpose, sustaining bass)
-  let audio = null, playNodes = [], activeOscs = [], playing = false, phStart = 0, phRAF = 0, endTimer = 0;
-  const BPM = 100, SPB = 60 / BPM, TOTAL = BEATS * SPB, midiFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+  // audible playback: a picked electric bass from the shared General MIDI bank (hero.js)
+  const hero = heroPlayer();
+  window.readySetHero = hero;          // for scripts/hero_sound_check.py
+  let playing = false, phStart = 0, phRAF = 0, endTimer = 0;
   const playBtn = document.getElementById('play');
-  function stopAudio() {
+  function stopAudio(cut = true) {
     playing = false; playhead = null; cancelAnimationFrame(phRAF); clearTimeout(endTimer);
-    playNodes.forEach(n => { try { n.stop(); } catch (e) {} }); playNodes = []; activeOscs = [];
+    hero.stop(cut);
     playBtn.textContent = 'Play'; playBtn.setAttribute('aria-pressed', 'false'); draw();
   }
-  function playAudio() {
+  async function playAudio() {
     if (playing) { stopAudio(); return; }
-    audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume();
-    const t = audio.currentTime + 0.06;
-    const master = audio.createGain(); master.gain.value = 0.2;
-    const lp = audio.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1600; lp.Q.value = 0.6;
-    master.connect(lp); lp.connect(audio.destination);
-    const groups = []; let cur = null;
-    notes.forEach(n => { const contig = cur && Math.abs(n.b - cur.endBeat) < 0.02;
-      if (n.leg && cur && contig) { cur.segs.push(n); cur.endBeat = n.b + n.l; }
-      else { cur = { sb: n.b, endBeat: n.b + n.l, segs: [n] }; groups.push(cur); } });
-    groups.forEach(gp => {
-      const gt0 = t + gp.sb * SPB, gEnd = t + gp.endBeat * SPB;
-      const osc = audio.createOscillator(); osc.type = 'triangle';
-      const g = audio.createGain(); osc.connect(g); g.connect(master);
-      osc.detune.setValueAtTime(transpose * 100, gt0);
-      gp.segs.forEach((n, si) => { const st = t + n.b * SPB, dur = n.l * SPB, f = midiFreq(40 + n.p);
-        if (si === 0) osc.frequency.setValueAtTime(f, st);
-        else osc.frequency.linearRampToValueAtTime(f, st + 0.028);
-        if (n.bend) osc.frequency.linearRampToValueAtTime(midiFreq(40 + n.p + n.bend), st + dur * 0.9);
-        if (n.vib) { const lfo = audio.createOscillator(); lfo.frequency.value = 5.5; const lg = audio.createGain(); lg.gain.value = 40;
-          lfo.connect(lg); lg.connect(osc.detune); lfo.start(st); lfo.stop(st + dur + 0.05); playNodes.push(lfo); } });
-      const glen = gEnd - gt0, rel = Math.min(0.12, glen * 0.35);
-      const pk = 0.85 * (0.3 + 0.7 * gp.segs[0].v);   // velocity: ghosts sit back
-      g.gain.setValueAtTime(0, gt0); g.gain.linearRampToValueAtTime(pk, gt0 + 0.02);
-      g.gain.setValueAtTime(pk, gEnd - rel); g.gain.linearRampToValueAtTime(0.0001, gEnd);
-      osc.start(gt0); osc.stop(gEnd + 0.06); playNodes.push(osc); activeOscs.push(osc); });
-    playing = true; phStart = t; playBtn.textContent = 'Stop'; playBtn.setAttribute('aria-pressed', 'true');
+    playing = true; playBtn.textContent = 'Stop'; playBtn.setAttribute('aria-pressed', 'true');
+    let t;
+    try { t = await hero.play(transpose); }          // the first press loads the sounds
+    catch (e) { console.warn('bass demo unavailable:', e); stopAudio(); return; }
+    if (t == null || !playing) return;                // stopped while loading
+    phStart = t;
+    endTimer = setTimeout(() => stopAudio(false), (t - hero.now + TOTAL) * 1000 + 100);
     if (R.reducedMotion()) {
       // Reduced motion: a static marker at the start instead of a moving playhead.
-      playhead = 0; draw(); endTimer = setTimeout(stopAudio, TOTAL * 1000 + 100);
+      playhead = 0; draw();
       return;
     }
-    (function ph() { if (!playing) return; const el = audio.currentTime - phStart;
-      if (el >= TOTAL) { stopAudio(); return; } playhead = Math.max(0, el / TOTAL); draw(); phRAF = requestAnimationFrame(ph); })();
+    (function ph() { if (!playing) return; const el = hero.now - phStart;
+      playhead = Math.min(1, Math.max(0, el / TOTAL)); draw(); phRAF = requestAnimationFrame(ph); })();
   }
   playBtn.addEventListener('click', playAudio);
+  // start fetching the sounds when a press looks likely, so the first one is quick
+  playBtn.addEventListener('pointerenter', () => import('./shared/midiplay.js').then(m => m.soundfontBytes()).catch(() => {}), { once: true });
   window.addEventListener('resize', draw);
   window.addEventListener('tabridge-theme', refreshPalette);
   R.onSchemeChange(refreshPalette);

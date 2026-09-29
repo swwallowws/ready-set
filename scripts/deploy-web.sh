@@ -26,17 +26,22 @@ mkdir -p "$target"
 find "$target" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 
 # Pages: the main page, /try/ and its catalogue, favicons.
-cp "$root/web/index.html" "$root/web/app.js" "$target/"
+cp "$root/web/index.html" "$root/web/app.js" "$root/web/hero.js" "$target/"
 cp -R "$root/web/try" "$root/web/favicons" "$target/"
 # WASM: only the module and its glue (wasm-pack's pkg/.gitignore would hide
 # the folder from git, and its README is the code repo's).
 mkdir -p "$target/pkg"
 cp "$root/web/pkg/tabridge.js" "$root/web/pkg/tabridge_bg.wasm" "$target/pkg/"
 # Shared files (serve.py mounts ../shared at /shared locally; here it's a folder).
-mkdir -p "$target/shared/vendor/design/fonts"
-cp "$root/shared/roll.js" "$root/shared/sources.js" "$target/shared/"
+mkdir -p "$target/shared/vendor/design/fonts" "$target/shared/vendor/design/sound/spessasynth"
+cp "$root/shared/roll.js" "$root/shared/sources.js" "$root/shared/midiplay.js" "$root/shared/midiplay.css" "$target/shared/"
 cp "$root"/shared/vendor/design/*.css "$root"/shared/vendor/design/*.js "$target/shared/vendor/design/"
 cp "$root"/shared/vendor/design/fonts/* "$target/shared/vendor/design/fonts/"
+# The preview's sounds: the design system's shared General MIDI bank (and its
+# NOTICE), played by the design system's spessasynth (and its LICENSE and NOTICE;
+# the .d.ts stays behind).
+cp "$root/shared/vendor/design/sound/gm.sf3" "$root/shared/vendor/design/sound/NOTICE" "$target/shared/vendor/design/sound/"
+cp "$root"/shared/vendor/design/sound/spessasynth/*.min.js "$root/shared/vendor/design/sound/spessasynth/LICENSE" "$root/shared/vendor/design/sound/spessasynth/NOTICE" "$target/shared/vendor/design/sound/spessasynth/"
 
 # The hosted proxy, and no local Live template on a static host.
 printf '{"proxy": "%s", "template": false}\n' "$PROXY_URL" > "$target/site.json"

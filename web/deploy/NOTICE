@@ -4,6 +4,11 @@ Archivo and JetBrains Mono fonts: SIL Open Font License 1.1, texts in
 shared/vendor/design/fonts/.
 Demo pieces in try/catalog/: from the Mutopia Project (mutopiaproject.org),
 each under the licence and credit listed for it in try/catalog/catalog.json.
-html-midi-player and Tone.js are loaded from jsDelivr at run time, not shipped here.
+spessasynth_lib, spessasynth_core and stb-vorbis (the preview's MIDI player):
+Apache License 2.0, text and details in shared/vendor/design/sound/spessasynth/.
+shared/vendor/design/sound/gm.sf3 (the preview's sounds): a trimmed copy of
+GeneralUser GS 2.0.3 by S. Christian Collins (schristiancollins.com), under the
+GeneralUser GS License v2.0; credit, changes and licence text in
+shared/vendor/design/sound/NOTICE.
 
 Rust crates compiled into pkg/tabridge_bg.wasm (name version license):
