@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en" data-category="transform">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ready Set: your scores into Ableton Live</title>
+<!-- Favicons: generated and copied here by the showcase's `npm run favicons -- --copy`. -->
+<link rel="icon" href="./favicons/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="icon" href="./favicons/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./favicons/apple-touch-icon.png" />
+<!-- Shared design system (synced from ~/Playground/design into shared/vendor).
+     Paths stay relative so the page also works under a subpath (GitHub Pages). -->
+<link rel="stylesheet" href="./shared/vendor/design/tokens.css" />
+<link rel="stylesheet" href="./shared/vendor/design/valuebox.css" />
+<script src="./shared/roll.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 15px/1.55 var(--font-sans); font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 0 16px 96px; }
+  a { color: var(--ink); }
+  .mut { color: var(--ink-mut); }
+  .eyebrow { font: 500 11px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mut); }
+  .head { font-stretch: var(--head-stretch); font-weight: var(--head-weight); letter-spacing: var(--head-tracking); line-height: .95; margin: 0; }
+  section { margin-top: calc(var(--space) * 7); }
+  section > .eyebrow { display: block; margin-bottom: calc(var(--space) * 2); }
+
+  /* controls (design reference) --------------------------------------- */
+  button, select, input[type=text] {
+    font: inherit; color: var(--ink); background: var(--ground-2); border: var(--hairline);
+    border-radius: var(--radius); padding: var(--space) calc(var(--space) * 1.5);
+  }
+  button { cursor: pointer; }
+  button:hover { background: var(--band); }
+  button:disabled { color: var(--ink-mut); cursor: default; background: var(--ground-2); }
+  button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
+  button[aria-pressed="true"]:hover { background: var(--ground-2); }
+  button.primary { background: var(--ink); color: var(--ground); border-color: var(--ink); font-weight: 600; }
+  button.primary:hover { background: var(--ink); opacity: .85; }
+  button.primary:disabled { background: var(--ground-2); color: var(--ink-mut); border-color: var(--line); opacity: 1; }
+  input[type=checkbox] { accent-color: var(--acc); }
+  input[type=text]:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible, .drop:focus-within {
+    outline: 2px solid var(--acc); outline-offset: 1px;
+  }
+  label.cap, .cap { display: block; font: 500 11px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mut); margin-bottom: var(--space); }
+
+  /* bar ---------------------------------------------------------------- */
+  .bar { border-bottom: var(--hairline); background: var(--ground-2); }
+  .bar-inner { max-width: 880px; margin: 0 auto; padding: var(--space) 16px; display: flex; align-items: center; gap: var(--space); }
+  .wordmark { font: 700 16px/1 var(--font-mono); display: flex; align-items: center; gap: var(--space); margin-right: auto; }
+  .wordmark svg { width: 16px; height: 16px; }
+  .modes { display: flex; }
+  .modes button { padding: 4px var(--space); font: 500 12px/1.4 var(--font-mono); }
+  .modes button + button { border-left: none; }
+
+  /* hero --------------------------------------------------------------- */
+  .hero { margin-top: calc(var(--space) * 6); }
+  .hero h1 { font-size: clamp(2.4rem, 8vw, 4.4rem); margin-top: calc(var(--space) * 2); text-wrap: balance; }
+  .lede { color: var(--ink-mut); font-size: 1.08rem; max-width: 56ch; margin: calc(var(--space) * 2.5) 0 0; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  /* demo roll ------------------------------------------------------------ */
+  .demo { margin-top: calc(var(--space) * 4); border: var(--hairline); background: var(--ground-2); }
+  .demo-bar { display: flex; justify-content: space-between; gap: var(--space); flex-wrap: wrap;
+    padding: var(--space) calc(var(--space) * 1.5); border-bottom: var(--hairline);
+    font: 500 11px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mut); }
+  .demo-bar .src { color: var(--ink); text-transform: none; letter-spacing: 0; }
+  canvas#roll { width: 100%; height: 196px; display: block; }
+  .ctl { display: flex; align-items: center; gap: calc(var(--space) * 1.5); flex-wrap: wrap;
+    padding: var(--space) calc(var(--space) * 1.5); border-top: var(--hairline); }
+  .ctl-label { font: 500 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mut); }
+  .legend { font: 12px/1.4 var(--font-mono); color: var(--ink-mut); display: flex; gap: calc(var(--space) * 2); align-items: center; }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--ink); vertical-align: middle; margin-right: 6px; }
+  .legend i.vib { border-top-style: dotted; }
+
+  /* the tool --------------------------------------------------------------- */
+  .drop { display: block; border: 1px dashed var(--ink-mut); background: var(--ground-2); padding: calc(var(--space) * 4) calc(var(--space) * 2);
+    text-align: center; cursor: pointer; }
+  .drop:hover, .drop.over { border-style: solid; border-color: var(--acc); }
+  .drop.over { background: var(--band); }
+  .drop .big { font-size: 1.25rem; font-weight: 700; font-stretch: var(--head-stretch); letter-spacing: var(--head-tracking); }
+  .drop .big .pick { color: var(--acc); }
+  .drop .mut { font: 12px/1.5 var(--font-mono); margin-top: var(--space); }
+  .panel { border: var(--hairline); background: var(--ground-2); padding: calc(var(--space) * 2); margin-top: calc(var(--space) * 2); }
+  .picked .t { font-weight: 700; font-size: 1.1rem; }
+  .picked .m { color: var(--ink-mut); font: 12px/1.5 var(--font-mono); margin-top: 2px; }
+  .opts { display: flex; gap: calc(var(--space) * 1.5); align-items: flex-end; flex-wrap: wrap; margin-top: calc(var(--space) * 2); }
+  .opts > div { flex: 1; min-width: 150px; }
+  .opts > div.act { flex: 0 0 auto; min-width: 0; }
+  .opts select { width: 100%; }
+  #status { color: var(--ink-mut); font: 12px/1.5 var(--font-mono); min-height: 18px; margin-top: calc(var(--space) * 1.5); }
+  #status.err { color: var(--ink); font-weight: 600; }
+  #status.err::before { content: "Error: "; }
+  #player-host { margin-top: calc(var(--space) * 1.5); }
+  midi-player { width: 100%; display: block; }
+  midi-player::part(control-panel) { background: var(--ground); border: var(--hairline); border-radius: 0; }
+  midi-player::part(play-button) { color: var(--ink); background: var(--ground-2); border: var(--hairline); border-radius: 0; }
+  midi-player::part(time) { color: var(--ink-mut); font-family: var(--font-mono); }
+  midi-player::part(seek-bar) { accent-color: var(--acc); }
+  #template-state { margin-top: var(--space); font: 11.5px var(--font-mono); color: var(--ink-mut); }
+
+  /* online search ------------------------------------------------------------ */
+  details.online { margin-top: calc(var(--space) * 2); border: var(--hairline); background: var(--ground-2); }
+  details.online > summary { cursor: pointer; padding: calc(var(--space) * 1.5) calc(var(--space) * 2); font-weight: 600; list-style: none;
+    display: flex; justify-content: space-between; gap: var(--space); }
+  details.online > summary::-webkit-details-marker { display: none; }
+  details.online > summary::after { content: "+"; font-family: var(--font-mono); color: var(--ink-mut); }
+  details.online[open] > summary::after { content: "\2212"; }
+  details.online > summary .mut { font: 12px/1.6 var(--font-mono); font-weight: 400; margin-left: auto; }
+  .online-body { padding: 0 calc(var(--space) * 2) calc(var(--space) * 2); }
+  .row { display: flex; gap: var(--space); }
+  .row > input { flex: 1; min-width: 0; }
+  .opt-row { display: flex; align-items: flex-start; gap: var(--space); margin-top: calc(var(--space) * 1.5); }
+  .check { display: flex; gap: var(--space); align-items: flex-start; font-size: 14px; }
+  .check input { margin-top: 4px; }
+  .check .mut { font-size: 13px; }
+  /* "Sources": a small disclosure; the list shows on hover, focus, or tap */
+  .srcs { position: relative; margin-left: auto; flex: 0 0 auto; }
+  .srcs-btn { display: inline-flex; align-items: center; gap: 4px; border: none; background: transparent; padding: 2px 0;
+    color: var(--ink-mut); font: 500 11px/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; cursor: help; }
+  .srcs-btn:hover { background: transparent; color: var(--ink); }
+  .srcs-btn svg { width: 12px; height: 12px; }
+  .srcs .tip { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; width: 260px; padding: var(--space) calc(var(--space) * 1.25);
+    background: var(--ground); border: var(--hairline); color: var(--ink-mut); font: 12px/1.5 var(--font-mono); flex-direction: column; gap: 3px; }
+  .srcs .tip b { color: var(--ink); font-weight: 600; margin-right: 4px; }
+  .srcs:hover .tip, .srcs:focus-within .tip, .srcs.open .tip { display: flex; }
+  .search-status { color: var(--ink-mut); font: 12px/1.5 var(--font-mono); margin-top: calc(var(--space) * 1.5); }
+  .search-status:empty { display: none; }
+  .filters { display: flex; flex-wrap: wrap; margin-top: calc(var(--space) * 1.5); }
+  .filters:empty { margin-top: 0; }
+  .filters button { font: 500 12px/1.4 var(--font-mono); padding: 4px var(--space); margin: 0 -1px -1px 0; }
+  .results { margin-top: calc(var(--space) * 1.5); max-height: 340px; overflow: auto; border-top: var(--hairline); }
+  .results:empty { border-top: none; margin-top: 0; }
+  .result { display: flex; align-items: baseline; gap: calc(var(--space) * 1.5); width: 100%; text-align: left;
+    background: transparent; border: none; border-bottom: var(--hairline); padding: var(--space) 0; }
+  .result:hover { background: var(--band); }
+  .result.sel { box-shadow: inset 2px 0 0 var(--acc); padding-left: var(--space); }
+  .result .rmain { flex: 1; min-width: 0; }
+  .result .t { font-weight: 600; }
+  .result .m, .result .src { color: var(--ink-mut); font: 12px/1.4 var(--font-mono); }
+  .result .src { flex: 0 0 auto; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* uses, ways ---------------------------------------------------------------- */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; border-top: var(--hairline); border-left: var(--hairline); }
+  .grid > * { padding: calc(var(--space) * 2); border-right: var(--hairline); border-bottom: var(--hairline); background: var(--ground-2); }
+  .grid h3, .grid h2 { font-size: 1.05rem; margin: 0; font-weight: 700; }
+  .grid.four { grid-template-columns: repeat(4, 1fr); }
+  .grid.four h3 { font-size: .95rem; }
+  .grid p { color: var(--ink-mut); font-size: 14px; margin: var(--space) 0 0; }
+  .way { display: flex; flex-direction: column; }
+  .way .req { margin-top: auto; padding-top: calc(var(--space) * 1.5); font: 12px/1.5 var(--font-mono); color: var(--ink-mut); }
+  .way .req b { color: var(--ink); font-weight: 500; }
+  .way a.btn { align-self: flex-start; margin-top: calc(var(--space) * 1.5); text-decoration: none; border: var(--hairline);
+    padding: var(--space) calc(var(--space) * 1.5); background: var(--ground); font-weight: 600; }
+  .way a.btn:hover { background: var(--band); }
+
+  .foot { margin-top: calc(var(--space) * 6); padding-top: calc(var(--space) * 2); border-top: var(--hairline);
+    font: 12px/1.7 var(--font-mono); color: var(--ink-mut); }
+  .foot b { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 600px) {
+    .grid, .grid.four { grid-template-columns: 1fr; }
+    .demo-bar .src { display: none; }
+    .row { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="bar-inner">
+    <div class="wordmark">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M1.5 12.5C4 12.5 5 4 8.5 4c2.6 0 3.4 5 6 5" stroke="var(--acc)" stroke-width="2"/>
+      </svg>Ready Set
+    </div>
+    <div class="modes" role="group" aria-label="Colour mode">
+      <button type="button" data-mode="" aria-pressed="true">System</button>
+      <button type="button" data-mode="paper" aria-pressed="false">Paper</button>
+      <button type="button" data-mode="night" aria-pressed="false">Night</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <section class="hero">
+    <div class="eyebrow">Transform · MusicXML · MIDI · Guitar Pro · Ableton Live</div>
+    <h1 class="head">Your score, as a Live set.</h1>
+    <p class="lede"><b>MusicXML</b>, <b>MIDI</b> or <b>Guitar Pro</b> in, a multi-track Ableton project out.</p>
+
+    <div class="demo">
+      <div class="demo-bar">
+        <span>Bass · drop D · Live 12</span>
+        <span class="src">D|0-0-0-12-0h3p1-12~-0\</span>
+      </div>
+      <canvas id="roll" aria-label="Piano roll of a one-bar drop-D bassline with a legato run, a vibrato hold and a pitch dive"></canvas>
+      <div class="ctl">
+        <button id="play" type="button">Play</button>
+        <span id="tr-label" class="ctl-label">Transpose</span>
+        <span id="tr"></span>
+        <span class="legend" aria-hidden="true"><span><i></i>bend</span><span><i class="vib"></i>vibrato</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="tool" id="tool">
+    <span class="eyebrow">Convert a file</span>
+    <label class="drop" id="drop" for="file">
+      <div class="big">Drop a MusicXML, MIDI or Guitar Pro file or <span class="pick">choose one</span></div>
+      <div class="mut">Stays in your browser</div>
+      <input type="file" id="file" accept=".musicxml,.xml,.mid,.midi,.gp,.gpx,.gp3,.gp4,.gp5" hidden />
+    </label>
+
+    <details class="online" id="online">
+      <summary>Search online</summary>
+      <div class="online-body">
+        <form id="search-form">
+          <div class="row">
+            <input type="text" id="q" placeholder="Song or artist" aria-label="Song or artist" autocomplete="off" />
+            <button type="submit">Search</button>
+          </div>
+        </form>
+        <div class="opt-row">
+          <label class="check">
+            <input type="checkbox" id="uploads" />
+            <span>Include fan-made MIDI <span class="mut">(fine for practice, not for release)</span></span>
+          </label>
+          <span class="srcs" id="srcs">
+            <button type="button" class="srcs-btn" id="srcs-btn" aria-describedby="srcs-tip" aria-expanded="false"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor"/><path d="M6 5.2v3.3M6 3.3v.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Sources</button>
+            <!-- app.js rewrites these lines to match what this host can reach
+                 (the static site has no proxy, so no live Mutopia or FreeMIDI). -->
+            <span class="tip" role="tooltip" id="srcs-tip">
+              <span id="src-mutopia"><b>Mutopia</b> public-domain scores, always searched</span>
+              <span id="src-fan"><b>BitMidi, FreeMIDI</b> fan-made MIDI, searched when included</span>
+            </span>
+          </span>
+        </div>
+        <div class="search-status" id="search-status" role="status"></div>
+        <div class="filters" id="filters"></div>
+        <div class="results" id="results"></div>
+      </div>
+    </details>
+
+    <div class="panel picked" id="picked" hidden>
+      <span class="cap">Selected</span>
+      <div id="picked-info"></div>
+      <div class="opts">
+        <div>
+          <label class="cap" for="format">Format</label>
+          <select id="format">
+            <option value="als">Ableton Live (.als)</option>
+            <option value="mid">MIDI (.mid)</option>
+          </select>
+        </div>
+        <div>
+          <label class="cap" for="semitones">Transpose</label>
+          <select id="semitones"><!-- filled by JS: -12..+12 --></select>
+        </div>
+        <div class="act"><button id="preview" type="button" disabled>Preview</button></div>
+        <div class="act"><button id="download" class="primary" type="button" disabled>Download</button></div>
+      </div>
+      <div id="status" role="status"></div>
+      <div id="player-host" hidden></div>
+      <div id="template-state"></div>
+    </div>
+  </section>
+
+  <section class="uses">
+    <span class="eyebrow">Use it to</span>
+    <div class="grid four">
+      <div><h3>Learn it at any tempo</h3></div>
+      <div><h3>Play along with the band</h3></div>
+      <div><h3>Arrange it your way</h3></div>
+      <div><h3>Sing it in your key</h3></div>
+    </div>
+  </section>
+
+  <section class="ways">
+    <span class="eyebrow">Two ways in</span>
+    <div class="grid">
+      <div class="way">
+        <h2>In your browser</h2>
+        <div class="req"><b>.als + .mid</b> download</div>
+        <a class="btn" href="#tool">Convert a file</a>
+      </div>
+      <div class="way">
+        <h2>Inside Ableton</h2>
+        <div class="req">Right-click a track · <b>Import a song…</b></div>
+        <a class="btn" href="https://github.com/swwallowws/ready-set">Extension: coming soon</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import { valueBox } from "./shared/vendor/design/valuebox.js";
+  // ---- colour mode: System / Paper / Night -----------------------------------
+  // Stamps data-theme on :root (tokens.css flips color-scheme from it). ?theme=
+  // or a saved choice seeds it; the canvas redraws on every change.
+  const root = document.documentElement;
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
+  };
+  const modeBtns = [...document.querySelectorAll('.modes button')];
+  function setMode(m, save) {
+    if (m) root.setAttribute('data-theme', m); else root.removeAttribute('data-theme');
+    modeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === (m || ''))));
+    if (save) store.set('tabridge-mode', m || null);
+    window.dispatchEvent(new Event('tabridge-theme'));
+  }
+  const param = new URLSearchParams(location.search).get('theme');
+  setMode(param === 'paper' || param === 'night' ? param : (store.get('tabridge-mode') || ''), false);
+  modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode, true)));
+
+  // ---- playable bassline demo (Web Audio + canvas) ------------------------------
+  // p = semitones above MIDI 40 (E2). v = velocity 0..1 (ghosts play quieter).
+  // bend = semitones glided to over the note, vib = vibrato hold, leg = legato
+  // from the previous note. The back half of that groove: a chug up to the
+  // octave, a legato run, a vibrato hold and a closing dive.
+  const D = -2, OCT = 10;
+  const notes = [
+    {b:0,    l:0.25, p:D,   v:1},
+    {b:0.25, l:0.25, p:D,   v:.45},
+    {b:0.5,  l:0.25, p:D,   v:.8},
+    {b:0.75, l:0.25, p:OCT, v:.75},
+    {b:1,    l:0.25, p:D,   v:.45},
+    {b:1.25, l:0.25, p:1,   v:.7,  leg:true},
+    {b:1.5,  l:0.5,  p:-1,  v:.8,  leg:true},
+    {b:2,    l:1,    p:OCT, v:.9, vib:true},
+    {b:3,    l:1,    p:D,   v:1,  bend:-4},
+  ];
+  const BEATS = 4, PMIN = -20, PMAX = 24;   // relative to E2, with room to transpose +-12
+  let transpose = 0, playhead = null, pal = null;
+  const canvas = document.getElementById('roll'), ctx = canvas.getContext('2d');
+  const R = window.TabridgeRoll;
+  const refreshPalette = () => { pal = R.palette(root); draw(); };
+
+  function fit() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), r = canvas.getBoundingClientRect();
+    canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return r;
+  }
+  // Rounded-rect path (the demo keeps its original chunky note shape).
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  // A 2px ink line over a ground-coloured casing, so it reads on any tint.
+  // `dash` draws the ink pass dotted (the casing stays a solid halo underneath),
+  // matching the legend's dotted vibrato swatch.
+  function cased(path, dash) {
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([]);
+    path(); ctx.lineWidth = 4.5; ctx.strokeStyle = pal.ground; ctx.stroke();
+    if (dash) ctx.setLineDash(dash);
+    path(); ctx.lineWidth = 2; ctx.strokeStyle = pal.ink; ctx.stroke();
+    if (dash) ctx.setLineDash([]);
+  }
+  function draw() {
+    if (!pal) pal = R.palette(root);
+    const r = fit(), W = r.width, H = r.height, pL = 8, pT = 10, rw = W - 16, rh = H - 20;
+    ctx.fillStyle = pal.ground; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = pal.band; ctx.fillRect(pL, pT, rw, rh);
+    const x = b => pL + (b / BEATS) * rw, y = p => pT + ((PMAX - (p + transpose)) / (PMAX - PMIN)) * rh;
+    ctx.fillStyle = pal.line;   // beat lines, bar lines stronger
+    for (let i = 0; i <= BEATS; i++) { ctx.globalAlpha = i % 4 === 0 ? 1 : 0.5; ctx.fillRect(Math.round(x(i)), pT, 1, rh); }
+    ctx.globalAlpha = 1;
+    const at = playhead == null ? null : playhead * BEATS;
+    notes.forEach(n => {
+      const nx = x(n.b), nw = Math.max(6, x(n.b + n.l) - nx - 3), ny = y(n.p);
+      const now = at != null && at >= n.b && at < n.b + n.l;
+      rr(nx + 1, ny - 6, nw, 12, 3);
+      // shaded by sounding pitch on the roll's fixed axis, so a transpose recolours the line
+      ctx.fillStyle = now ? pal.acc : pal.tint(R.shade(n.p + transpose, PMIN, PMAX)); ctx.fill();
+      if (now) { ctx.lineWidth = 1; ctx.strokeStyle = pal.ink; ctx.stroke(); }
+      if (n.bend) {   // bend: curve from the note to its target pitch
+        const x0 = nx + 1, x1 = nx + 1 + nw, y0 = ny, y1 = y(n.p + n.bend);
+        cased(() => { ctx.beginPath(); ctx.moveTo(x0, y0);
+          for (let s = 1; s <= 24; s++) { const t = s / 24; ctx.lineTo(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t * t); } });
+      }
+      if (n.vib) {    // vibrato: a dotted wave riding just above the note
+        cased(() => { ctx.beginPath();
+          for (let s = 0; s <= 18; s++) { const t = s / 18, xx = nx + 1 + nw * t, yy = ny - 8 + Math.sin(t * Math.PI * 5) * 3.6;
+            s === 0 ? ctx.moveTo(xx, yy) : ctx.lineTo(xx, yy); } }, [1, 4]);
+      }
+    });
+    if (playhead != null) { ctx.fillStyle = pal.acc; ctx.fillRect(Math.round(pL + playhead * rw), pT, 1.5, rh); }
+  }
+
+  valueBox(document.getElementById('tr'), {
+    min: -12, max: 12, value: 0, labelledBy: 'tr-label',
+    format: v => (v > 0 ? '+' : '') + v,
+    onChange: v => {
+      transpose = v; draw();
+      if (playing) activeOscs.forEach(o => { try { o.detune.setValueAtTime(transpose * 100, audio.currentTime); } catch (e) {} });
+    },
+  });
+
+  // audible playback (legato groups, live transpose, sustaining bass)
+  let audio = null, playNodes = [], activeOscs = [], playing = false, phStart = 0, phRAF = 0, endTimer = 0;
+  const BPM = 100, SPB = 60 / BPM, TOTAL = BEATS * SPB, midiFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+  const playBtn = document.getElementById('play');
+  function stopAudio() {
+    playing = false; playhead = null; cancelAnimationFrame(phRAF); clearTimeout(endTimer);
+    playNodes.forEach(n => { try { n.stop(); } catch (e) {} }); playNodes = []; activeOscs = [];
+    playBtn.textContent = 'Play'; playBtn.setAttribute('aria-pressed', 'false'); draw();
+  }
+  function playAudio() {
+    if (playing) { stopAudio(); return; }
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume();
+    const t = audio.currentTime + 0.06;
+    const master = audio.createGain(); master.gain.value = 0.2;
+    const lp = audio.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1600; lp.Q.value = 0.6;
+    master.connect(lp); lp.connect(audio.destination);
+    const groups = []; let cur = null;
+    notes.forEach(n => { const contig = cur && Math.abs(n.b - cur.endBeat) < 0.02;
+      if (n.leg && cur && contig) { cur.segs.push(n); cur.endBeat = n.b + n.l; }
+      else { cur = { sb: n.b, endBeat: n.b + n.l, segs: [n] }; groups.push(cur); } });
+    groups.forEach(gp => {
+      const gt0 = t + gp.sb * SPB, gEnd = t + gp.endBeat * SPB;
+      const osc = audio.createOscillator(); osc.type = 'triangle';
+      const g = audio.createGain(); osc.connect(g); g.connect(master);
+      osc.detune.setValueAtTime(transpose * 100, gt0);
+      gp.segs.forEach((n, si) => { const st = t + n.b * SPB, dur = n.l * SPB, f = midiFreq(40 + n.p);
+        if (si === 0) osc.frequency.setValueAtTime(f, st);
+        else osc.frequency.linearRampToValueAtTime(f, st + 0.028);
+        if (n.bend) osc.frequency.linearRampToValueAtTime(midiFreq(40 + n.p + n.bend), st + dur * 0.9);
+        if (n.vib) { const lfo = audio.createOscillator(); lfo.frequency.value = 5.5; const lg = audio.createGain(); lg.gain.value = 40;
+          lfo.connect(lg); lg.connect(osc.detune); lfo.start(st); lfo.stop(st + dur + 0.05); playNodes.push(lfo); } });
+      const glen = gEnd - gt0, rel = Math.min(0.12, glen * 0.35);
+      const pk = 0.85 * (0.3 + 0.7 * gp.segs[0].v);   // velocity: ghosts sit back
+      g.gain.setValueAtTime(0, gt0); g.gain.linearRampToValueAtTime(pk, gt0 + 0.02);
+      g.gain.setValueAtTime(pk, gEnd - rel); g.gain.linearRampToValueAtTime(0.0001, gEnd);
+      osc.start(gt0); osc.stop(gEnd + 0.06); playNodes.push(osc); activeOscs.push(osc); });
+    playing = true; phStart = t; playBtn.textContent = 'Stop'; playBtn.setAttribute('aria-pressed', 'true');
+    if (R.reducedMotion()) {
+      // Reduced motion: a static marker at the start instead of a moving playhead.
+      playhead = 0; draw(); endTimer = setTimeout(stopAudio, TOTAL * 1000 + 100);
+      return;
+    }
+    (function ph() { if (!playing) return; const el = audio.currentTime - phStart;
+      if (el >= TOTAL) { stopAudio(); return; } playhead = Math.max(0, el / TOTAL); draw(); phRAF = requestAnimationFrame(ph); })();
+  }
+  playBtn.addEventListener('click', playAudio);
+  window.addEventListener('resize', draw);
+  window.addEventListener('tabridge-theme', refreshPalette);
+  R.onSchemeChange(refreshPalette);
+  document.fonts && document.fonts.ready.then(refreshPalette);
+  refreshPalette();
+</script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

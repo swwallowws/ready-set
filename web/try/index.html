@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" data-category="transform">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ready Set: try it</title>
+<link rel="icon" href="../favicons/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="icon" href="../favicons/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="../favicons/apple-touch-icon.png" />
+<!-- Shared design system (synced from ~/Playground/design into shared/vendor).
+     Paths stay relative so the page also works under a subpath (GitHub Pages). -->
+<link rel="stylesheet" href="../shared/vendor/design/tokens.css" />
+<link rel="stylesheet" href="../shared/vendor/design/steprail.css" />
+<link rel="stylesheet" href="../shared/vendor/design/iconbutton.css" />
+<link rel="stylesheet" href="../shared/vendor/design/demoshell.css" />
+<link rel="stylesheet" href="../shared/vendor/design/valuebox.css" />
+<link rel="stylesheet" href="./try.css" />
+<script>
+  // ?embed=1 hides the header; ?theme=paper|night forces a mode (as on the
+  // main page). Runs before paint so a framed page never flashes.
+  (function () {
+    const q = new URLSearchParams(location.search), root = document.documentElement;
+    if (q.get('embed') === '1') root.setAttribute('data-embed', '');
+    let m = q.get('theme');
+    if (m !== 'paper' && m !== 'night') { try { m = localStorage.getItem('tabridge-mode'); } catch (e) { m = null; } }
+    if (m === 'paper' || m === 'night') root.setAttribute('data-theme', m);
+  })();
+</script>
+<script src="../shared/roll.js"></script>
+</head>
+<body>
+<main id="demo">
+  <form id="search-form" class="row" role="search">
+    <input type="text" id="q" placeholder="Song or artist" aria-label="Song or artist" autocomplete="off" />
+    <button type="button" id="clear-q" data-icon="close" data-label="Clear" hidden></button>
+    <button type="submit" id="search-go" data-icon="search" data-label="Search"></button>
+  </form>
+
+  <div class="search-list" id="search-list">
+    <div class="chips" id="chips"></div>
+    <div class="search-status" id="search-status" role="status"></div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <div class="picked-line" id="picked-line" hidden>
+    <span class="t" id="picked-line-title"></span>
+    <span class="m" id="picked-line-meta"></span>
+    <button type="button" id="change-pick" class="change" data-icon="search" data-label="Change piece" data-size="s"></button>
+  </div>
+
+  <div class="panel" id="picked" hidden>
+    <canvas id="roll" aria-label="Piano roll of the opening bars"></canvas>
+    <div class="ctl" id="ctl-row">
+      <span id="transpose-label" class="ctl-label">Transpose</span>
+      <span id="transpose"></span>
+      <div id="player-host"></div>
+      <button id="download" type="button" data-icon="download" data-label="Download .mid" hidden></button>
+    </div>
+    <div id="status" role="status"></div>
+
+    <div class="take" id="take" hidden>
+      <p class="ready">MIDI ready: open it in any DAW.</p>
+      <p class="credit" id="credit"></p>
+    </div>
+  </div>
+</main>
+
+<script type="module" src="./try.js"></script>
+</body>
+</html>

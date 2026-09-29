@@ -1,0 +1,42 @@
+[package]
+name = "tabridge"
+version = "0.1.0"
+edition = "2021"
+description = "Turn your own scores and tabs (MusicXML, MIDI, Guitar Pro) into Ableton Live sets and MIDI files, with optional transposition."
+license = "MIT"
+repository = "https://github.com/swwallowws/ready-set"
+
+[lib]
+# cdylib: wasm-pack browser target. rlib: native tests + downstream Rust use.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+midly = { version = "0.5", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Read-only XML DOM for the MusicXML source. Pure Rust, WASM-clean.
+roxmltree = "0.20"
+# gzip for the Ableton .als writer (.als is gzipped XML). Pure Rust, WASM-clean.
+flate2 = "1"
+# Guitar Pro reader (GP3/4/5, GP6 .gpx, GP7+ .gp). A patched copy so it builds
+# for wasm32; see third_party/guitarpro/TABRIDGE-PATCH.md.
+guitarpro = { path = "third_party/guitarpro" }
+# Shared Live 12 set (.als) writer, also used by voxmpe.
+expressive-liveset = { git = "https://github.com/swwallowws/expressive-liveset.git", rev = "034837d72666c89493c6471af3a342cbe6d1d8c4" }
+
+# Browser-WASM glue. Pulled in for all targets; cheap and lets lib.rs expose
+# the same entry points natively (for tests) and in-browser.
+wasm-bindgen = "0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Surfaces panics in the browser console during development.
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[features]
+default = ["panic-hook"]
+panic-hook = ["dep:console_error_panic_hook"]
+
+[profile.release]
+# Smaller WASM artifacts.
+opt-level = "s"
+lto = true

@@ -1,0 +1,35 @@
+/target
+/pkg
+**/*.rs.bk
+Cargo.lock
+.DS_Store
+
+# Sample payloads fetched for schema discovery (milestone 1): keep out of VCS.
+/fixtures/
+
+# Generated MIDI output.
+*.mid
+*.als
+# except the /try/ catalogue: Public Domain, CC BY and CC BY-SA pieces from the
+# Mutopia Project, frozen by scripts/build_try_catalog.py for the static demo.
+!/web/try/catalog/*.mid
+
+# Pasted screenshots
+*.png
+# except the favicon fallbacks (copied in by the showcase's npm run favicons -- --copy)
+!/web/favicons/*.png
+
+# wasm-pack build output
+/web/pkg/
+/web/template.als.xml
+
+# Python bytecode
+__pycache__/
+
+# Ableton Extensions SDK tarballs: its licence doesn't allow redistribution,
+# so each developer gets them from Ableton (see extension/README.md).
+/extension/vendor/
+
+# Python venv and source-coverage spike output
+.venv/
+/spike/

@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en" data-category="transform">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ready Set</title>
+<style>
+/*__TOKENS__*/
+/*__VALUEBOX_CSS__*/
+* { box-sizing:border-box; }
+html, body { height:100%; margin:0; }
+body { background:var(--ground); color:var(--ink); font:13px/1.5 var(--font-sans); font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; }
+/* header: the website's wordmark bar, with the tagline where the site has its mode switch */
+.head { padding:var(--space) 14px; border-bottom:var(--hairline); background:var(--ground-2);
+  display:flex; align-items:center; gap:var(--space); }
+.wordmark { font:700 16px/1 var(--font-mono); display:flex; align-items:center; gap:var(--space); margin-right:auto; }
+.wordmark svg { width:16px; height:16px; }
+.tagline { font:500 12px/1 var(--font-mono); color:var(--ink-mut); }
+.view { flex:1 1 auto; min-height:0; overflow:auto; padding:14px; }
+.cap { display:block; font:500 11px/1.4 var(--font-mono); letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-mut); margin-bottom:var(--space); }
+input[type=text] { width:100%; padding:7px 9px; background:var(--ground-2); border:var(--hairline);
+  border-radius:var(--radius); color:var(--ink); font:13px var(--font-sans); outline:none; }
+input[type=text]:focus-visible, button:focus-visible, .drop:focus-within { outline:2px solid var(--acc); outline-offset:1px; }
+input[type=checkbox] { accent-color:var(--acc); }
+.row { display:flex; gap:6px; }
+button { font:500 12px var(--font-sans); padding:7px 12px; border-radius:var(--radius); border:var(--hairline);
+  background:var(--ground-2); color:var(--ink); cursor:pointer; white-space:nowrap; }
+button:hover { background:var(--band); }
+button.primary { background:var(--ink); color:var(--ground); border-color:var(--ink); font-weight:600; }
+button.primary:hover { background:var(--ink); opacity:.85; }
+button:disabled, button.primary:disabled { background:var(--ground-2); color:var(--ink-mut); border-color:var(--line); cursor:default; opacity:1; }
+button[aria-pressed="true"] { border-color:var(--acc); color:var(--acc); }
+button[aria-pressed="true"]:hover { background:var(--ground-2); }
+
+/* open a file */
+.drop { display:block; border:1px dashed var(--ink-mut); background:var(--ground-2); padding:22px 14px; text-align:center; cursor:pointer; }
+.drop:hover, .drop.over { border-style:solid; border-color:var(--acc); }
+.drop.over { background:var(--band); }
+.drop .big { font-size:15px; font-weight:700; font-stretch:var(--head-stretch); letter-spacing:var(--head-tracking); }
+.drop .big .pick { color:var(--acc); }
+.sect { margin-top:18px; padding-top:14px; border-top:var(--hairline); }
+.opt-row { display:flex; align-items:flex-start; gap:var(--space); margin-top:9px; }
+.check { display:flex; gap:7px; align-items:flex-start; font-size:12px; }
+.check input { margin-top:3px; }
+.check .mut { color:var(--ink-mut); }
+/* "Sources": a small disclosure; the list shows on hover, focus, or tap */
+.srcs { position:relative; margin-left:auto; flex:0 0 auto; }
+.srcs-btn { display:inline-flex; align-items:center; gap:4px; border:none; background:transparent; padding:1px 0;
+  color:var(--ink-mut); font:500 11px/1.4 var(--font-mono); text-transform:uppercase; letter-spacing:.06em; cursor:help; }
+.srcs-btn:hover { background:transparent; color:var(--ink); }
+.srcs-btn svg { width:12px; height:12px; }
+.srcs .tip { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:5; width:250px; padding:8px 10px;
+  background:var(--ground); border:var(--hairline); color:var(--ink-mut); font:11px/1.5 var(--font-mono);
+  flex-direction:column; gap:3px; }
+.srcs .tip b { color:var(--ink); font-weight:600; margin-right:4px; }
+.srcs:hover .tip, .srcs:focus-within .tip, .srcs.open .tip { display:flex; }
+
+/* results: the website's result rows (web/index.html, /try/) plus an inline Play */
+.filters { display:flex; flex-wrap:wrap; margin-top:12px; }
+.filters button { font:500 12px/1.4 var(--font-mono); padding:4px var(--space); margin:0 -1px -1px 0; }
+.results { margin-top:12px; border-top:var(--hairline); }
+.res { display:flex; align-items:center; gap:12px; padding:var(--space) 0; border-bottom:var(--hairline); }
+.res:hover { background:var(--band); }
+.res.sel { box-shadow:inset 2px 0 0 var(--acc); padding-left:var(--space); }
+.res.loaded { flex-direction:column; align-items:stretch; gap:var(--space); padding-right:var(--space); }
+.res.loaded:hover { background:transparent; }
+.res-top { display:flex; align-items:center; gap:12px; width:100%; }
+.res-main { flex:1; min-width:0; text-align:left; cursor:pointer; }
+.res .t { font-weight:600; }
+.res .m, .res .src { color:var(--ink-mut); font:12px/1.4 var(--font-mono); }
+.res .src { flex:0 0 auto; text-transform:uppercase; letter-spacing:.06em; }
+.res-play { flex:0 0 auto; padding:4px 10px; font:600 12px var(--font-mono); }
+canvas.iroll { width:100%; height:56px; display:block; border:var(--hairline); }
+
+.foot { padding:10px 14px; border-top:var(--hairline); background:var(--ground-2); display:flex; align-items:center; gap:var(--space); }
+.foot .tr { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+.foot .cap { margin:0; }
+.err { color:var(--ink); font-weight:600; font-size:12px; margin-top:10px; }
+.err::before { content:"Error: "; }
+.hint { color:var(--ink-mut); font-size:11px; margin-top:10px; }
+.hint b { color:var(--ink); font-weight:600; }
+.back { border:none; background:transparent; color:var(--ink-mut); padding:0; font:500 11px var(--font-mono); cursor:pointer; }
+.back:hover { color:var(--ink); background:transparent; }
+/* preview roll */
+.pv-title { font:700 14px var(--font-sans); }
+.pv-sub { color:var(--ink-mut); font:11px var(--font-mono); margin-top:2px; }
+canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:var(--hairline); cursor:pointer; touch-action:none; }
+.pv-ctl { display:flex; align-items:center; gap:10px; margin-top:10px; }
+</style>
+<script>/*__ROLL__*/</script>
+<script>/*__VALUEBOX__*/</script>
+</head>
+<body>
+<div class="head">
+  <div class="wordmark">
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 12.5C4 12.5 5 4 8.5 4c2.6 0 3.4 5 6 5" stroke="var(--acc)" stroke-width="2"/></svg>Ready Set
+  </div>
+  <span class="tagline">simply jam.</span>
+</div>
+<div class="view" id="view"></div>
+<div class="foot" id="foot"></div>
+
+<script>
+  const S = '__STATE__';               // replaced with the injected state object at runtime
+  const view = document.getElementById('view');
+  const foot = document.getElementById('foot');
+  const R = window.TabridgeRoll;
+  let pal = R.palette(document.documentElement);
+  let sel = S.selectedUid ?? null;   // uid string of the selected row
+  let semis = S.semitones || 0;
+  let filter = 'all';   // results filter: "all" or a source key (midi/freemidi/mutopia/local-*)
+  let players = [];                     // active makePlayer instances (for live transpose)
+  const CLEAN = 'Tracks are added to the <b>Set you have open</b>. For a clean start, open a new Set (⌘N) first.';
+  const LABELS = { midi: 'BitMidi', freemidi: 'FreeMIDI', mutopia: 'Mutopia' };
+  // Rows from a local source module carry their own label.
+  (S.results || []).forEach((r) => { if (r.label && !LABELS[r.source]) LABELS[r.source] = r.label; });
+  const srcLabel = (s) => LABELS[s] || s;
+
+  const esc = (s) => (s || "").toString().replace(/[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function send(obj) {
+    const msg = { method: "close_and_send", params: [JSON.stringify(obj)] };
+    try { window.webkit.messageHandlers.live.postMessage(msg); return; } catch (e) {}
+    try { window.chrome.webview.postMessage(msg); return; } catch (e) {}
+  }
+  const uploadsOn = () => { const c = document.getElementById('uploads'); return c ? c.checked : !!S.uploads; };
+  const doSearch = (v) => { const q = (v || "").trim(); if (q) send({ action: "search", query: q, uploads: uploadsOn() }); };
+
+  // Read a file the user picked or dropped and hand its bytes (base64) to the
+  // host, which sniffs the format (MIDI, Guitar Pro, else MusicXML) and parses
+  // it with the same WASM core as the website.
+  function openFile(file) {
+    if (!file) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      const bytes = new Uint8Array(rd.result);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      send({ action: "file", name: file.name, data: btoa(bin), semitones: semis });
+    };
+    rd.readAsArrayBuffer(file);
+  }
+  function wireFile() {
+    const input = document.getElementById('file'), drop = document.getElementById('drop');
+    if (!input) return;
+    input.addEventListener('change', () => openFile(input.files && input.files[0]));
+    ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'dragend'].forEach((t) => drop.addEventListener(t, () => drop.classList.remove('over')));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); drop.classList.remove('over');
+      openFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
+  }
+  // The window also accepts a drop anywhere, so a file dragged from Finder
+  // onto the modal isn't opened as a page by the webview.
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => { e.preventDefault(); if (S.mode === 'start') openFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
+
+  // ---- shared audio engine ------------------------------------------------
+  let AC = null, acUnlocked = false;
+  const ac = () => {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    // WKWebView (Live's webview) keeps a context muted until a silent buffer is
+    // played inside a real user gesture; resume() alone isn't enough. Do that
+    // once, the first time ac() runs from a click.
+    if (!acUnlocked) {
+      try { const b = AC.createBuffer(1, 1, 22050); const s = AC.createBufferSource();
+        s.buffer = b; s.connect(AC.destination); s.start(0); acUnlocked = true; } catch (e) {}
+    }
+    return AC;
+  };
+  const midiFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  let NB = null;
+  function noise(a) { if (NB) return NB; const len = Math.floor(a.sampleRate * 0.4);
+    const b = a.createBuffer(1, len, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; NB = b; return b; }
+  // Minimal GM drum synth: returns the nodes it started (so they can be stopped).
+  function drumHit(a, dest, n, t) {
+    const g = a.createGain(); g.connect(dest); const out = [];
+    if (n === 35 || n === 36) {                                   // kick
+      const o = a.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.11);
+      g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      o.connect(g); o.start(t); o.stop(t + 0.22); out.push(o);
+    } else if (n === 38 || n === 40 || n === 37 || n === 39) {    // snare / clap
+      const s = a.createBufferSource(); s.buffer = noise(a);
+      const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1400;
+      s.connect(hp); hp.connect(g); g.gain.setValueAtTime(0.55, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      s.start(t); s.stop(t + 0.18); out.push(s);
+    } else if (n === 42 || n === 44 || n === 46 || n >= 49) {     // hats / cymbals
+      const s = a.createBufferSource(); s.buffer = noise(a);
+      const hp = a.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000;
+      const dur = (n === 46 || n >= 49) ? 0.3 : 0.05;
+      s.connect(hp); hp.connect(g); g.gain.setValueAtTime(0.32, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      s.start(t); s.stop(t + dur + 0.02); out.push(s);
+    } else {                                                      // toms & the rest -> pitched
+      const o = a.createOscillator(); o.type = 'sine'; const f = 110 * Math.pow(2, (n - 45) / 12);
+      o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.7, t + 0.2);
+      g.gain.setValueAtTime(0.7, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+      o.connect(g); o.start(t); o.stop(t + 0.26); out.push(o);
+    }
+    return out;
+  }
+
+  // columnar {p,s,d,k,v arrays} -> [{p,s,d,k,v}]
+  function decode(P) { const p = P.p || [], s = P.s || [], d = P.d || [], k = P.k || [], v = P.v || [], out = [];
+    for (let i = 0; i < p.length; i++) out.push({ p: p[i], s: s[i], d: d[i], k: k[i], v: v[i] }); return out; }
+
+  // A player bound to a canvas + play button. Live transpose sets each note's
+  // detune at schedule time and updates every currently-sounding oscillator in
+  // retune(), so moving the slider shifts every sounding note in the track at once.
+  // The roll follows roll.md: key bands, accent shades by pitch, drums as an
+  // --ink-mut lane underneath, the playhead in the accent.
+  function makePlayer(cfg) {
+    const { canvas, playBtn, controllable } = cfg;
+    const notes = cfg.notes, tempo = cfg.tempo || 120, beats = cfg.beats || 32;
+    const ctx = canvas.getContext('2d');
+    const mel = notes.filter((n) => !n.k), drum = notes.filter((n) => n.k);
+    let nodes = [], oscs = [], playing = false, phStart = 0, raf = 0, pos = 0, schedTimer = 0;
+    let cache = null, cw = 0, ch = 0, pMin = 0, pMax = 0;
+    function range() { pMin = 127; pMax = 0; mel.forEach((n) => { const p = n.p + semis; if (p < pMin) pMin = p; if (p > pMax) pMax = p; });
+      if (pMax < pMin) { pMin = 48; pMax = 72; } }
+    range();
+    function paint(w, h) {
+      const off = document.createElement('canvas'); off.width = w; off.height = h; const c = off.getContext('2d');
+      const lane = drum.length ? 8 : 0, rh = h - lane;
+      const rows = pMax - pMin + 1, row = rh / rows;
+      R.bands(c, pal, 0, 0, w, pMin, pMax, row, true);
+      const x = (b) => (b / beats) * w, y = (p) => (pMax - p) * row;
+      mel.forEach((n) => { const p = n.p + semis, nx = x(n.s), nw = Math.max(1, x(n.s + n.d) - nx - 0.5);
+        R.note(c, pal, nx, y(p), nw, Math.max(2, row), R.shade(p, pMin, pMax), false); });
+      if (drum.length) { c.fillStyle = pal.band; c.fillRect(0, rh, w, lane); c.fillStyle = pal.inkMut;
+        drum.forEach((n) => { const nx = x(n.s); c.fillRect(nx, rh + 1, Math.max(1, x(n.s + n.d) - nx), lane - 2); }); }
+      return off;
+    }
+    function draw() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2), r = canvas.getBoundingClientRect(), w = r.width, h = r.height;
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = w * dpr; canvas.height = h * dpr; cache = null; }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!cache || cw !== w || ch !== h) { cache = paint(w, h); cw = w; ch = h; }
+      ctx.clearRect(0, 0, w, h); ctx.drawImage(cache, 0, 0, w, h);
+      if (playing || pos > 0) { ctx.fillStyle = pal.acc; ctx.fillRect(Math.round((pos || 0) * w), 0, 1, h); }
+    }
+    function setBtn() { playBtn.textContent = playing ? 'Stop' : 'Play'; playBtn.setAttribute('aria-pressed', String(playing)); }
+    function stop(rewind) { playing = false; if (rewind) pos = 0; cancelAnimationFrame(raf);
+      if (schedTimer) { clearInterval(schedTimer); schedTimer = 0; }
+      nodes.forEach((n) => { try { n.stop(); } catch (e) {} }); nodes = []; oscs = [];
+      setBtn(); draw(); }
+    function play() {
+      if (playing) { stop(false); return; }
+      const a = ac(); const SPB = 60 / tempo, total = beats * SPB;
+      if ((pos || 0) >= 0.999) pos = 0; const from = (pos || 0) * total, t0 = a.currentTime + 0.08;
+      const master = a.createGain(); master.gain.value = 0.15;
+      const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200; lp.Q.value = 0.5;
+      master.connect(lp); lp.connect(a.destination);
+      // Look-ahead scheduler: only build nodes for the next ~0.4 s of notes as
+      // playback advances, so the whole song stays light (no thousands of
+      // oscillators created up front). Notes arrive already sorted by start.
+      let mi = 0, di = 0; const LOOK = 0.4;
+      function scheduleUpTo(horizon) {
+        while (mi < mel.length) { const n = mel[mi]; const nStart = n.s * SPB; if (nStart >= horizon) break; mi++;
+          const nDur = Math.max(0.05, n.d * SPB), nEnd = nStart + nDur; if (nEnd <= from) continue;
+          const st = t0 + Math.max(0, nStart - from), endT = t0 + (nEnd - from), dur = endT - st;
+          const osc = a.createOscillator(); osc.type = 'triangle'; osc.frequency.setValueAtTime(midiFreq(n.p), st);
+          osc.detune.setValueAtTime(semis * 100, st);   // transpose in cents; live-updated in retune()
+          const g = a.createGain(); osc.connect(g); g.connect(master); const rel = Math.min(0.1, dur * 0.4);
+          g.gain.setValueAtTime(0, st); g.gain.linearRampToValueAtTime(0.55, st + 0.008);
+          g.gain.setValueAtTime(0.55, Math.max(st + 0.01, endT - rel)); g.gain.linearRampToValueAtTime(0.0001, endT);
+          osc.start(st); osc.stop(endT + 0.03); nodes.push(osc); oscs.push(osc);
+        }
+        while (di < drum.length) { const n = drum[di]; const nStart = n.s * SPB; if (nStart >= horizon) break; di++;
+          if (nStart + 0.25 <= from) continue; const st = t0 + Math.max(0, nStart - from);
+          drumHit(a, master, n.p, st).forEach((x) => nodes.push(x)); }
+      }
+      playing = true; phStart = t0 - from; setBtn();
+      scheduleUpTo(from + LOOK);
+      schedTimer = setInterval(() => { if (!playing) return; scheduleUpTo((a.currentTime - t0) + from + LOOK); }, 80);
+      // Reduced motion: keep the static marker where playback started.
+      if (R.reducedMotion()) { draw(); return; }
+      (function ph() { if (!playing) return; const p2 = a.currentTime - phStart;
+        if (p2 >= total) { stop(true); return; } pos = p2 / total; draw(); raf = requestAnimationFrame(ph); })();
+    }
+    function retune() { range(); cache = null; draw();
+      if (playing) { const now = ac().currentTime;
+        oscs.forEach((o) => { try { o.detune.setValueAtTime(semis * 100, now); } catch (e) {} }); } }
+    function repaint() { cache = null; draw(); }
+    playBtn.onclick = play;
+    if (controllable) {
+      const seek = (e) => { const r = canvas.getBoundingClientRect();
+        pos = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); draw(); };
+      let drag = false, resume = false;
+      canvas.addEventListener('pointerdown', (e) => { drag = true; resume = playing; if (playing) stop(false);
+        seek(e); try { canvas.setPointerCapture(e.pointerId); } catch (x) {} });
+      canvas.addEventListener('pointermove', (e) => { if (drag) seek(e); });
+      const end = () => { if (!drag) return; drag = false; if (resume) play(); };
+      canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
+    }
+    window.addEventListener('resize', repaint);
+    draw();
+    return { play, stop, retune, repaint };
+  }
+  // Re-resolve colours when the system scheme flips (Live follows it).
+  R.onSchemeChange(() => { pal = R.palette(document.documentElement); players.forEach((p) => p.repaint()); });
+
+  // Transpose is the design system's value box, as on the website: click or
+  // hold the top half to go up, the bottom half to go down (arrow keys too).
+  function wireTranspose() {
+    const tr = document.getElementById('tr');
+    if (!tr) return;
+    window.DesignValueBox.valueBox(tr, {
+      min: -12, max: 12, value: semis, labelledBy: 'tr-label',
+      format: (v) => (v > 0 ? '+' : '') + v,
+      onChange: (v) => { semis = v; players.forEach((p) => p.retune()); },
+    });
+  }
+  const transposeFoot = () =>
+    '<div class="tr"><span class="cap" id="tr-label">Transpose</span><span id="tr"></span></div>';
+  // The opt-in checkbox stays short; which sources are searched lives in a small
+  // "Sources" disclosure beside it (hover, keyboard focus, or tap to show).
+  const sourcesTip = () =>
+    '<span class="srcs" id="srcs"><button type="button" class="srcs-btn" id="srcs-btn" aria-describedby="srcs-tip" aria-expanded="false">' +
+      '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor"/><path d="M6 5.2v3.3M6 3.3v.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Sources</button>' +
+      '<span class="tip" role="tooltip" id="srcs-tip">' +
+        '<span><b>Mutopia</b> public-domain scores, always searched</span>' +
+        (S.localLabels || []).map((l) => '<span><b>' + esc(l) + '</b> local source module, always searched</span>').join('') +
+        '<span><b>BitMidi, FreeMIDI</b> fan-made MIDI, searched when included</span>' +
+      '</span></span>';
+  const uploadsBox = () =>
+    '<div class="opt-row"><label class="check"><input type="checkbox" id="uploads"' + (S.uploads ? ' checked' : '') + ' />' +
+    '<span>Include fan-made MIDI <span class="mut">(fine for practice, not for release)</span></span></label>' + sourcesTip() + '</div>';
+  function wireSources() {
+    const box = document.getElementById('srcs'), btn = document.getElementById('srcs-btn');
+    if (!box) return;
+    const set = (on) => { box.classList.toggle('open', on); btn.setAttribute('aria-expanded', String(on)); };
+    btn.onclick = (e) => { e.preventDefault(); set(!box.classList.contains('open')); };
+    btn.addEventListener('keydown', (e) => { if (e.key === 'Escape') { set(false); btn.blur(); } });
+    document.addEventListener('pointerdown', (e) => { if (!box.contains(e.target)) set(false); });
+  }
+
+  // ---- views --------------------------------------------------------------
+  function render() {
+    players = [];
+    if (S.mode === "start") {
+      view.innerHTML =
+        '<label class="drop" id="drop" for="file">' +
+          '<div class="big">Drop a MusicXML, MIDI or Guitar Pro file or <span class="pick">choose one</span></div>' +
+          '<input type="file" id="file" accept=".musicxml,.xml,.mid,.midi,.gp,.gpx,.gp3,.gp4,.gp5" hidden />' +
+        '</label>' +
+        (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
+        '<div class="sect"><label class="cap" for="q">Or search online</label>' +
+        '<div class="row"><input type="text" id="q" placeholder="Song or artist" value="' + esc(S.query) + '" />' +
+        '<button id="go">Search</button></div>' + uploadsBox() + '</div>' +
+        '<div class="hint">' + CLEAN + '</div>';
+      foot.innerHTML = '<div style="flex:1"></div><button id="cancel">Cancel</button>';
+      const q = document.getElementById('q');
+      document.getElementById('go').onclick = () => doSearch(q.value);
+      q.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(q.value); });
+      wireFile();
+      wireSources();
+    } else if (S.mode === "results") {
+      // A row's intro notes are prefetched (S.results[i].intro) so its play
+      // button sounds INLINE on the same click, with no modal reopen. Rows past the
+      // prefetch window fall back to a load round-trip (quickload). If we just
+      // came back from such a load, S.intro carries that row's notes.
+      const byId = {};
+      S.results.forEach((r) => { byId[r.uid] = r; });
+      if (S.intro && byId[S.intro.uid]) byId[S.intro.uid].intro = S.intro;
+      const list = S.results.map((r) => {
+        const cls = 'res' + (r.uid === sel ? ' sel' : '');
+        const play = r.intro
+          ? '<button class="res-play" data-inline="' + r.uid + '">Play</button>'
+          : '<button class="res-play" data-load="' + r.uid + '">Play</button>';
+        const meta = r.tracks != null
+          ? r.tracks + ' track' + (r.tracks === 1 ? '' : 's')
+          : 'MIDI file';
+        return '<div class="' + cls + '" id="row-' + r.uid + '" data-song="' + r.uid + '" data-source="' + r.source + '">' +
+          '<div class="res-top"><div class="res-main" data-pick="' + r.uid + '">' +
+          '<div class="t">' + esc(r.artist ? r.artist + ' · ' + r.title : r.title) + '</div>' +
+          '<div class="m">' + esc(meta) + '</div></div>' +
+          '<span class="src">' + esc(srcLabel(r.source)) + '</span>' +
+          play + '</div></div>';
+      }).join('');
+      // Source filter buttons (only when more than one source returned results);
+      // they follow whichever sources are present, in first-seen order.
+      const srcs = [...new Set(S.results.map((r) => r.source))];
+      const chips = srcs.length > 1
+        ? '<div class="filters">' +
+            ['all', ...srcs].map((f) =>
+              '<button aria-pressed="' + (filter === f) + '" data-filter="' + f + '">' +
+              (f === 'all' ? 'All' : esc(srcLabel(f))) + '</button>').join('') +
+          '</div>'
+        : '';
+      view.innerHTML =
+        '<button class="back" id="home">← open a file</button>' +
+        '<div class="row" style="margin-top:9px"><input type="text" id="q" value="' + esc(S.query) + '" /><button id="again">Search</button></div>' +
+        uploadsBox() +
+        (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') + chips +
+        '<div class="results">' + (list || '<div class="hint">No results.</div>') + '</div>' +
+        '<div class="hint">' + CLEAN + '</div>';
+      foot.innerHTML = transposeFoot() +
+        '<button id="preview"' + (sel == null ? ' disabled' : '') + '>Preview</button>' +
+        '<button class="primary" id="build"' + (sel == null ? ' disabled' : '') + '>Build</button>';
+
+      // Filter rows by source WITHOUT re-rendering (keeps any playing audio).
+      function applyFilter(f) { filter = f;
+        view.querySelectorAll('.filters button').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.filter === f)));
+        view.querySelectorAll('.res').forEach((el) => {
+          el.style.display = (f === 'all' || el.dataset.source === f) ? '' : 'none'; }); }
+
+      // Selecting a row (its title area) only changes the target for Preview /
+      // Build; it must NOT restart the view or cut off audio that's playing.
+      function setSel(uid) { sel = uid;
+        view.querySelectorAll('.res').forEach((el) => el.classList.toggle('sel', el.dataset.song === uid));
+        ['preview', 'build'].forEach((k) => { const b = document.getElementById(k); if (b) b.disabled = false; }); }
+
+      let open = null; // { uid, player, btn, rec }
+      function closeOpen() {
+        if (!open) return;
+        const o = open; open = null;
+        try { o.player.stop(true); } catch (e) {}
+        const i = players.indexOf(o.player); if (i >= 0) players.splice(i, 1);
+        const row = document.getElementById('row-' + o.uid);
+        if (row) { row.classList.remove('loaded'); const c = row.querySelector('.iroll'); if (c) c.remove(); }
+        o.btn.textContent = 'Play'; o.btn.setAttribute('aria-pressed', 'false');
+        o.btn.onclick = () => playInline(o.rec, o.btn); // fresh trigger for reuse
+      }
+      function playInline(rec, btn) {
+        setSel(rec.uid);
+        closeOpen();
+        const row = document.getElementById('row-' + rec.uid); row.classList.add('loaded');
+        const cv = document.createElement('canvas'); cv.className = 'iroll'; row.appendChild(cv);
+        const p = makePlayer({ notes: decode(rec.intro), tempo: rec.intro.tempo, beats: rec.intro.beats,
+          canvas: cv, playBtn: btn, controllable: true });
+        players.push(p); open = { uid: rec.uid, player: p, btn, rec };
+        p.play(); // real user gesture → audio starts on this same click
+      }
+
+      view.querySelectorAll('.filters button').forEach((c) => (c.onclick = () => applyFilter(c.dataset.filter)));
+      view.querySelectorAll('.res-main').forEach((b) => (b.onclick = () => setSel(b.dataset.pick)));
+      view.querySelectorAll('.res-play[data-inline]').forEach((b) =>
+        (b.onclick = () => playInline(byId[b.dataset.inline], b)));
+      view.querySelectorAll('.res-play[data-load]').forEach((b) => (b.onclick = () => {
+        setSel(b.dataset.load); send({ action: "quickload", uid: b.dataset.load, semitones: semis }); }));
+      const q = document.getElementById('q');
+      document.getElementById('again').onclick = () => doSearch(q.value);
+      q.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(q.value); });
+      document.getElementById('home').onclick = () => { players.forEach((p) => p.stop(false)); send({ action: "home", semitones: semis }); };
+      wireTranspose();
+      wireSources();
+
+      // If we returned from a fallback load, expand that row ready to play (the
+      // reopened modal can't autoplay, so it waits for one click).
+      if (S.intro && byId[S.intro.uid]) {
+        const rec = byId[S.intro.uid], btn = document.getElementById('row-' + S.intro.uid)?.querySelector('.res-play');
+        if (btn) { setSel(rec.uid); const row = document.getElementById('row-' + rec.uid); row.classList.add('loaded');
+          const cv = document.createElement('canvas'); cv.className = 'iroll'; row.appendChild(cv);
+          const p = makePlayer({ notes: decode(rec.intro), tempo: rec.intro.tempo, beats: rec.intro.beats,
+            canvas: cv, playBtn: btn, controllable: true });
+          players.push(p); open = { uid: rec.uid, player: p, btn, rec }; }
+      }
+
+      const pv = document.getElementById('preview'); if (pv) pv.onclick = () => sel != null && send({ action: "preview", uid: sel, semitones: semis });
+      const bd = document.getElementById('build'); if (bd) bd.onclick = () => sel != null && send({ action: "build", uid: sel, semitones: semis });
+    } else if (S.mode === "preview") {
+      const P = S.preview || { p: [], tempo: 120, beats: 32 };
+      const sub = P.tempo + ' BPM · whole song' + (P.truncated ? ' · clipped' : '') + ' · drag to scrub';
+      view.innerHTML =
+        '<button class="back" id="back">← ' + (S.previewFrom === 'results' ? 'results' : 'open a different file') + '</button>' +
+        '<div class="pv-title" style="margin-top:9px">' + esc(P.label) + '</div>' +
+        '<div class="pv-sub">' + esc(sub) + '</div>' +
+        '<canvas id="roll"></canvas>' +
+        '<div class="pv-ctl"><button id="play">Play</button>' +
+        '<span class="hint" style="margin:0">Notes and drums. Slides and vibrato ride the .als export.</span></div>' +
+        (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
+        '<div class="hint">' + CLEAN + '</div>';
+      foot.innerHTML = transposeFoot() + '<button class="primary" id="build2">Build into Set</button>';
+      players.push(makePlayer({ notes: decode(P), tempo: P.tempo, beats: P.beats,
+        canvas: document.getElementById('roll'), playBtn: document.getElementById('play'), controllable: true }));
+      wireTranspose();
+      document.getElementById('back').onclick = () => { players.forEach((p) => p.stop(false)); send({ action: "back", semitones: semis }); };
+      document.getElementById('build2').onclick = () => { players.forEach((p) => p.stop(false)); send({ action: "build", uid: sel, semitones: semis }); };
+    }
+    const c = document.getElementById('cancel');
+    if (c) c.onclick = () => send({ action: "cancel" });
+  }
+  render();
+  // Repaint once the inlined fonts are ready, so canvas labels use them.
+  if (document.fonts) document.fonts.ready.then(() => players.forEach((p) => p.repaint()));
+</script>
+</body>
+</html>
