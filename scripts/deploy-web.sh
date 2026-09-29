@@ -5,11 +5,14 @@
 #   scripts/deploy-web.sh --push CHECKOUT   stage into a clone of ready-set-web, commit, push
 # Pushing publishes the site: only with Bengisu's explicit go.
 #
-# The staged site is static: no serve.py, so its site.json says {proxy:false}
-# and app.js searches only what a browser can reach on its own (BitMidi
-# directly, Mutopia from the frozen /try/ catalogue). Every page uses relative
+# The staged site is static: no serve.py, so its site.json points app.js at
+# the hosted proxy (ready-set-proxy on Deno Deploy) for live
+# Mutopia and FreeMIDI; BitMidi is fetched directly. Every page uses relative
 # paths, so it works under the /ready-set-web/ subpath.
 set -euo pipefail
+
+# Base URL of the hosted proxy (answers /proxy?url= and /freemidi?id=).
+PROXY_URL="https://ready-set-proxy.swwallowws.deno.net/"
 
 mode="${1:-}"; target="${2:-}"
 if [[ "$mode" != "--stage" && "$mode" != "--push" ]] || [[ -z "$target" ]]; then
@@ -35,8 +38,8 @@ cp "$root/shared/roll.js" "$root/shared/sources.js" "$target/shared/"
 cp "$root"/shared/vendor/design/*.css "$root"/shared/vendor/design/*.js "$target/shared/vendor/design/"
 cp "$root"/shared/vendor/design/fonts/* "$target/shared/vendor/design/fonts/"
 
-# No proxy and no local Live template on a static host.
-printf '{"proxy": false, "template": false}\n' > "$target/site.json"
+# The hosted proxy, and no local Live template on a static host.
+printf '{"proxy": "%s", "template": false}\n' "$PROXY_URL" > "$target/site.json"
 
 cp "$root/web/deploy/README.md" "$root/web/deploy/LICENSE" "$target/"
 {

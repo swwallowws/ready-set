@@ -3,8 +3,8 @@
 // merge, and labels. The heavy lifting (parsing tabs/MIDI/MusicXML, building
 // notes/MIDI/.als) lives in the Rust core and is shared via WASM; this is the
 // small JS layer around it. Kept pure: each surface injects its own fetch,
-// since the browser goes through a relative /proxy and the extension host may
-// fetch directly.
+// since the browser goes through a proxy (serve.py's, or the hosted one) and
+// the extension host may fetch directly.
 //
 // Sources:
 //   midi:      BitMidi MIDI archive, JSON API.

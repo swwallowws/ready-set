@@ -3,12 +3,13 @@
 // Fan-made MIDI sources (BitMidi, FreeMIDI) are opt-in, fine for practice but
 // not for release; Mutopia (public domain) is always on.
 //
-// Two hosts serve this page. scripts/serve.py answers ./site.json with
-// {proxy:true} and proxies the sources (Mutopia and FreeMIDI send no CORS
-// headers, and FreeMIDI needs a cookie handshake). The static build
-// (scripts/deploy-web.sh, GitHub Pages) ships a site.json with {proxy:false}:
-// there BitMidi is fetched directly (it allows any origin), Mutopia is searched
-// in the frozen /try/ catalogue, and FreeMIDI is left out. All paths are
+// Mutopia and FreeMIDI send no CORS headers (and FreeMIDI needs a cookie
+// handshake), so they go through a proxy; ./site.json says where it is.
+// scripts/serve.py answers {proxy:true}: its own same-origin /proxy. The
+// static build (scripts/deploy-web.sh, GitHub Pages) ships {proxy:"<base URL>"},
+// the hosted ready-set-proxy. {proxy:false} or no site.json means no proxy:
+// Mutopia is searched in the frozen /try/ catalogue and FreeMIDI is left out.
+// BitMidi is always fetched directly (it allows any origin). All paths are
 // relative so the page also works under a subpath.
 
 import init, {
@@ -35,14 +36,21 @@ import {
 } from "./shared/sources.js";
 import { searchCatalog } from "./try/search.js";
 
-const proxied = (url) => `./proxy?url=${encodeURIComponent(url)}`;
-
-// What this host offers: { proxy, template }. A missing or unreadable
-// site.json counts as the static build.
+// What this host offers: { proxy, template }. `proxy` is the proxy's base URL
+// ("./" for serve.py's same-origin proxy, "" for none). A missing or
+// unreadable site.json counts as no proxy.
+const proxyBase = (p) => {
+  if (p === true) return "./";
+  if (typeof p !== "string" || !p) return "";
+  return p.endsWith("/") ? p : `${p}/`;
+};
 const site = fetch("./site.json")
   .then((r) => (r.ok ? r.json() : {}))
   .catch(() => ({}))
-  .then((s) => ({ proxy: !!s.proxy, template: !!s.template }));
+  .then((s) => ({ proxy: proxyBase(s.proxy), template: !!s.template }));
+
+const proxied = async (url) => `${(await site).proxy}proxy?url=${encodeURIComponent(url)}`;
+const freemidiUrl = async (id) => `${(await site).proxy}${freemidiDownloadPath(id).replace(/^\//, "")}`;
 
 const $ = (id) => document.getElementById(id);
 const results = $("results");
@@ -121,12 +129,12 @@ const wasmReady = ready();
 // Fetch + normalize via the shared source layer (also used by the extension).
 // `direct` skips the proxy for sources that send CORS headers themselves.
 const getText = async (url, direct = false) => {
-  const res = await fetch(direct ? url : proxied(url));
+  const res = await fetch(direct ? url : await proxied(url));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
 };
-const searchBitmidi = async (q) => normBitmidi(await getText(bitmidiSearchUrl(q), !(await site).proxy));
-// Live Mutopia search needs the proxy; the static site searches the frozen
+const searchBitmidi = async (q) => normBitmidi(await getText(bitmidiSearchUrl(q), true));
+// Live Mutopia search needs the proxy; without one the page searches the frozen
 // /try/ catalogue instead (the same public-domain pieces the demo plays).
 let catalogue = null;
 const loadCatalogue = async () => {
@@ -260,13 +268,12 @@ function applyFilter() {
 }
 
 // Fetch the .mid bytes for a MIDI-bearing result. FreeMIDI goes through the
-// proxy's two-step endpoint; the rest go through the proxy when there is one,
-// and straight to the file otherwise (BitMidi allows any origin, catalogue
-// rows are files on this site).
+// proxy's two-step endpoint; live Mutopia files go through the proxy; BitMidi
+// (any origin allowed) and catalogue rows (files on this site) go direct.
 async function fetchMidiBytes(r) {
   const { proxy } = await site;
-  const url = r.source === "freemidi" ? `.${freemidiDownloadPath(r.freemidiId)}`
-    : (r.direct || !proxy) ? r.downloadUrl : proxied(r.downloadUrl);
+  const url = r.source === "freemidi" ? await freemidiUrl(r.freemidiId)
+    : (r.direct || r.source === "midi" || !proxy) ? r.downloadUrl : await proxied(r.downloadUrl);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return new Uint8Array(await res.arrayBuffer());
