@@ -36,6 +36,7 @@ import {
 } from "./shared/sources.js";
 import { searchCatalog } from "./try/search.js";
 import { midiPlayer, rollView } from "./shared/midiplay.js";
+import { valueBox } from "./shared/vendor/design/valuebox.js";
 
 // What this host offers: { proxy, template }. `proxy` is the proxy's base URL
 // ("./" for serve.py's same-origin proxy, "" for none). A missing or
@@ -94,14 +95,18 @@ site.then(({ proxy }) => {
   $("src-fan").innerHTML = "<b>BitMidi</b> fan-made MIDI, searched when included";
 });
 
-// Populate the transpose dropdown (-12..+12, default 0).
-for (let s = -12; s <= 12; s++) {
-  const o = document.createElement("option");
-  o.value = s;
-  o.textContent = s === 0 ? "0 (original)" : (s > 0 ? `+${s}` : `${s}`);
-  if (s === 0) o.selected = true;
-  $("semitones").appendChild(o);
-}
+// Transpose: the design system's value box (-12..+12, default 0), like the hero's.
+// Changing it while a preview is showing re-renders the preview with the new
+// shift; a short wait lets a held step settle first.
+let rerender = 0;
+const transpose = valueBox($("semitones"), {
+  min: -12, max: 12, value: 0, labelledBy: "semitones-label",
+  format: (v) => (v > 0 ? "+" : "") + v,
+  onChange: () => {
+    clearTimeout(rerender);
+    rerender = setTimeout(() => { if (player && !$("player-host").hidden) loadPreview(); }, 250);
+  },
+});
 
 // Optional Live template (web/template.als.xml): if present, .als exports clone
 // its instruments/MPE; otherwise the built-in template is used, with a stock
@@ -404,7 +409,7 @@ drop.addEventListener("drop", (e) => {
 $("download").addEventListener("click", async () => {
   if (!selected) return;
   const format = $("format").value;
-  const semitones = parseInt($("semitones").value, 10) || 0;
+  const semitones = transpose.value;
   $("download").disabled = true;
   try {
     setStatus("Building…");
@@ -459,7 +464,7 @@ function ensurePlayer() {
 // its own async callbacks so rapid re-renders can't race.
 async function loadPreview() {
   const myGen = ++previewGen;
-  const semitones = parseInt($("semitones").value, 10) || 0;
+  const semitones = transpose.value;
   ensurePlayer().unlock();                  // inside the click, before any await
   const at = player.playing ? player.time : 0;
   $("preview").disabled = true;
@@ -488,11 +493,6 @@ $("file").addEventListener("change", (e) => {
 });
 
 $("preview").addEventListener("click", () => { if (selected) loadPreview(); });
-
-// Changing Transpose while a preview is showing re-renders it with the new shift.
-$("semitones").addEventListener("change", () => {
-  if (player && !$("player-host").hidden) loadPreview();   // a change event is a user gesture too
-});
 
 function downloadBytes(bytes, name) {
   const blob = new Blob([bytes], { type: "application/octet-stream" });
