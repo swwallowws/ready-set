@@ -402,13 +402,14 @@
     catch (e) { console.warn('bass demo unavailable:', e); stopAudio(); return; }
     if (t == null || !playing) return;                // stopped while loading
     phStart = t;
-    endTimer = setTimeout(() => stopAudio(false), (t - hero.now + TOTAL) * 1000 + 100);
+    endTimer = setTimeout(() => stopAudio(false), (t - hero.heardNow + TOTAL) * 1000 + 100);   // when the last of it is heard
     if (R.reducedMotion()) {
       // Reduced motion: a static marker at the start instead of a moving playhead.
       playhead = 0; draw();
       return;
     }
-    (function ph() { if (!playing) return; const el = hero.now - phStart;
+    // the head shows what is heard: the audio clock less the output's delay
+    (function ph() { if (!playing) return; const el = hero.heardNow - phStart;
       playhead = Math.min(1, Math.max(0, el / TOTAL)); draw(); phRAF = requestAnimationFrame(ph); })();
   }
   playBtn.addEventListener('click', playAudio);

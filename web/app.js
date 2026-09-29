@@ -37,6 +37,7 @@ import {
 import { searchCatalog } from "./try/search.js";
 import { midiPlayer, rollView, seekOnRoll } from "./shared/midiplay.js";
 import { valueBox } from "./shared/vendor/design/valuebox.js";
+import { outputDelay } from "./shared/vendor/design/playhead.js";
 
 // What this host offers: { proxy, template }. `proxy` is the proxy's base URL
 // ("./" for serve.py's same-origin proxy, "" for none). A missing or
@@ -454,6 +455,7 @@ function ensurePlayer() {
   window.TabridgeRoll.onSchemeChange(() => roll.repaint());
   // for checks: is it heard, where is it
   window.readySetPlayer = { peak: () => player.peak(), get time() { return player.time; },
+                            get delay() { return outputDelay(player.ctx); },   // what the head trails the sound by
                             get playing() { return player.playing; }, get beat() { return player.beatAt(player.time); },
                             get page() { return roll.page; }, get head() { return roll.head; } };
   return player;

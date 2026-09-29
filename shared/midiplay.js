@@ -16,7 +16,7 @@
 // The bank is fetched once and kept in the Cache API; bump SF_VERSION when a design sync
 // changes gm.sf3.
 import { iconButton } from "./vendor/design/iconbutton.js";
-import { seekable, clampTime } from "./vendor/design/playhead.js";
+import { seekable, clampTime, heardTime } from "./vendor/design/playhead.js";
 
 const VENDOR = new URL("./vendor/design/sound/spessasynth/", import.meta.url);
 const SF_VERSION = "1";
@@ -83,8 +83,10 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
   }
   // While the roll is dragged during playback, the head (and the slider) show the
   // pointer's time and the sound keeps going until the drag lets go (scrub / endScrub).
-  let scrubAt = null;
-  const shown = () => (scrubAt ?? p.time);
+  // Playing, they show what is heard: the synth's time less the output's delay (200 ms or
+  // more on Bluetooth), held at the last start or seek (`jumpedTo`) until its sound arrives.
+  let scrubAt = null, jumpedTo = 0;
+  const shown = () => scrubAt ?? (p.playing ? heardTime(p.time, jumpedTo, p.ctx) : p.time);
   function paint() {
     const d = p.duration, t = Math.min(shown(), d || 0);
     if (!dragging) { seek.value = String(d ? Math.round((t / d) * 1000) : 0); paintSeek(d ? t / d : 0); }
@@ -103,6 +105,7 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
   let target = null, targetUntil = 0;
   function setTime(t) {
     target = Math.max(0, Math.min(t, p._duration));
+    jumpedTo = target;
     targetUntil = performance.now() + 1000;           // in case no answer ever comes
     p.seq.currentTime = target;
   }
@@ -225,6 +228,7 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
       this.unlock();
       if (at != null) setTime(at);
       else if (this.time >= this._duration - 0.05) setTime(0);
+      else jumpedTo = this.time;                      // a resume: heard from where it paused
       this.fade(1);
       this.seq.play();
       this.playing = true;

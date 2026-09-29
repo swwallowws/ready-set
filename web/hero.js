@@ -184,6 +184,7 @@ const GAIN = 1.6;
 
 export function heroPlayer() {
   let ctx = null, out = null, meter = null, synth = null, loading = null, sched = null, timer = 0, op = 0, offset = null;
+  let outputDelay = () => 0;                          // the design system's, once loaded
   const h = {
     playing: false, startedAt: 0, transpose: 0,
     /** load the synth (inside a click: it makes the AudioContext) */
@@ -197,6 +198,7 @@ export function heroPlayer() {
       loading = loading || (async () => {
         const vendor = new URL("./shared/vendor/design/sound/spessasynth/", import.meta.url);
         const { soundfontBytes } = await import("./shared/midiplay.js");
+        ({ outputDelay } = await import("./shared/vendor/design/playhead.js"));
         const [lib, bytes] = await Promise.all([
           import(new URL("spessasynth_lib.min.js", vendor).href), soundfontBytes(),
           ctx.audioWorklet.addModule(new URL("spessasynth_processor.min.js", vendor).href),
@@ -259,6 +261,8 @@ export function heroPlayer() {
     },
     setTranspose(v) { h.transpose = v; if (sched) sched.transpose = v; },
     get now() { return ctx ? ctx.currentTime : 0; },
+    /** the audio clock as heard: less the output's delay (200 ms or more on Bluetooth) */
+    get heardNow() { return ctx ? ctx.currentTime - outputDelay(ctx) : 0; },
     get ready() { return !!synth; },
     get clockOffset() { return offset; },
     /** the output's peak right now (0 to 1): 0 means silence */

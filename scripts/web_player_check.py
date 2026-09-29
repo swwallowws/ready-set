@@ -119,7 +119,8 @@ def roll_beat(page_no, frac, span=32):
 def drag_release(page, name, xs, *, steps=5, hold_ms=0, up_x=None, lose_capture=False):
     """press at xs[0] (a fraction of the roll's width), move through xs[1:], let go (at
     page pixel up_x if given); then every frame for 1 s must draw the head at the
-    let-go beat, moving on at 2 beats/s when playing (120 bpm)"""
+    let-go beat, moving on at 2 beats/s when playing (120 bpm) once the output's delay has
+    passed"""
     loc = page.locator("#preview-roll")
     loc.scroll_into_view_if_needed()
     b = loc.bounding_box()
@@ -144,8 +145,10 @@ def drag_release(page, name, xs, *, steps=5, hold_ms=0, up_x=None, lose_capture=
     page.mouse.up()
     page.wait_for_timeout(1000)
     rate = 2.0 if playing else 0.0
+    # playing, the head shows what is heard: it waits at the let-go beat for the output's delay
+    delay = page.evaluate("() => window.readySetPlayer.delay") * 1000
     off = [(round(t - t0), h) for t, h in page.evaluate(f"() => window.__heads.filter(s => s[0] >= {t0})")
-           if h is None or abs(h - (want + rate * (t - t0) / 1000)) > 0.45]
+           if h is None or abs(h - (want + rate * max(0.0, t - t0 - delay) / 1000)) > 0.45]
     check(not off, f"main: {'playing' if playing else 'paused'}, {name}: the head stays at beat {want:.1f}"
           + (f" (off in {len(off)} frames: {off[:4]})" if off else ""))
 
