@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Rust tests
+        run: cargo test
+      - name: The library builds for the browser (WebAssembly)
+        run: cargo build --lib --release --target wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The site's bassline and search
+        run: |
+          node scripts/test_hero.mjs
+          node scripts/test_try_search.mjs
