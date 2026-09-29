@@ -26,7 +26,7 @@ mkdir -p "$target"
 find "$target" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 
 # Pages: the main page, /try/ and its catalogue, favicons.
-cp "$root/web/index.html" "$root/web/app.js" "$target/"
+cp "$root/web/index.html" "$root/web/app.js" "$root/web/hero.js" "$target/"
 cp -R "$root/web/try" "$root/web/favicons" "$target/"
 # WASM: only the module and its glue (wasm-pack's pkg/.gitignore would hide
 # the folder from git, and its README is the code repo's).

@@ -83,6 +83,15 @@ bar, and a piano roll that follows the playhead. Nothing loads from a CDN.
 `scripts/web_player_check.py` checks in headless Chrome that it is heard
 (drums included) and that the roll follows; it serves `web/` itself.
 
+The bassline at the top of the main page (`web/hero.js`) plays through the same
+spessasynth and bank, on General MIDI's picked electric bass: each note on its
+own channel, its bend, vibrato and legato glides on the pitch wheel (±48
+semitones), its loudness on CC11, and Transpose moving the notes already
+sounding. `node scripts/test_hero.mjs` checks the curves and the MIDI;
+`scripts/hero_sound_check.py` records it in headless Chrome and checks that the
+pitch heard follows the curve within a few cents, at two Transpose settings and
+while Transpose moves.
+
 **Prerequisites:** [`wasm-pack`](https://rustwasm.github.io/wasm-pack/installer/)
 and Python 3 (standard library only, no `pip install`).
 

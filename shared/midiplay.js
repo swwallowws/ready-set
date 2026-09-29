@@ -121,7 +121,8 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
         this.out.connect(this.ctx.destination);
         this.meter = this.ctx.createAnalyser();      // read by peak(): is anything sounding
         this.out.connect(this.meter);
-        await synth.soundBankManager.addSoundBank(sf, "main");
+        // a copy: the bank's bytes stay whole for the hero's synth, which shares them
+        await synth.soundBankManager.addSoundBank(sf.slice(0), "main");
         await synth.isReady;
         this.synth = synth;
         this.seq = new lib.Sequencer(synth, { skipToFirstNoteOn: false });
