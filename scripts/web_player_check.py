@@ -131,6 +131,8 @@ def main():
         pk = wait_peak(page, "main: a drums-only file (channel 10)")
         print(f"  drums peak {pk:.3f}")
         check(any("/vendor/design/sound/gm.sf3" in u for u in requests), "main: the shared gm.sf3 is what loads")
+        check(any("/vendor/design/sound/spessasynth/spessasynth_lib.min.js" in u for u in requests),
+              "main: the design system's spessasynth is what plays it")
         check(not any("jsdelivr" in u for u in requests), "main: nothing from a CDN")
         page.screenshot(path=str(SHOTS / "player-main-drums.png"), full_page=True)
 

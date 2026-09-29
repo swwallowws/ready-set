@@ -76,8 +76,8 @@ import, search, pick, downloads, preview, colour modes); it needs the server
 running and the project `.venv` with Playwright.
 
 The preview (main page and `/try/`) plays through `shared/midiplay.js`:
-spessasynth (vendored in `shared/vendor/spessasynth/`) with the design
-system's shared General MIDI bank (`shared/vendor/design/sound/gm.sf3`, the
+spessasynth (the design system's build, in `shared/vendor/design/sound/spessasynth/`)
+with the design system's shared General MIDI bank (`shared/vendor/design/sound/gm.sf3`, the
 same sounds as every other tool that plays MIDI), a small play / stop / seek
 bar, and a piano roll that follows the playhead. Nothing loads from a CDN.
 `scripts/web_player_check.py` checks in headless Chrome that it is heard

@@ -5,7 +5,7 @@ shared/vendor/design/fonts/.
 Demo pieces in try/catalog/: from the Mutopia Project (mutopiaproject.org),
 each under the licence and credit listed for it in try/catalog/catalog.json.
 spessasynth_lib, spessasynth_core and stb-vorbis (the preview's MIDI player):
-Apache License 2.0, text and details in shared/vendor/spessasynth/.
+Apache License 2.0, text and details in shared/vendor/design/sound/spessasynth/.
 shared/vendor/design/sound/gm.sf3 (the preview's sounds): a trimmed copy of
 GeneralUser GS 2.0.3 by S. Christian Collins (schristiancollins.com), under the
 GeneralUser GS License v2.0; credit, changes and licence text in

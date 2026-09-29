@@ -1,4 +1,4 @@
-// The website's MIDI preview: spessasynth (vendor/spessasynth) playing the design system's
+// The website's MIDI preview: spessasynth (vendor/design/sound/spessasynth) playing the design system's
 // shared General MIDI bank (vendor/design/sound/gm.sf3), the same sounds as every other tool
 // that plays MIDI, drums on channel 10 from its Standard kit. Modelled on Rearranged's synth:
 // one AudioContext made inside the first click, one synth, one sequencer, a gain and a level
@@ -16,7 +16,7 @@
 // changes gm.sf3.
 import { iconButton } from "./vendor/design/iconbutton.js";
 
-const VENDOR = new URL("./vendor/spessasynth/", import.meta.url);
+const VENDOR = new URL("./vendor/design/sound/spessasynth/", import.meta.url);
 const SF_VERSION = "1";
 const SF_URL = new URL(`./vendor/design/sound/gm.sf3?v=${SF_VERSION}`, import.meta.url).href;
 const SF_CACHE = "ready-set-soundfont";
