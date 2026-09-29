@@ -61,7 +61,7 @@ soundfontBytes().catch(() => { /* tried again on the first pick */ });
 // for checks: is it heard, where is it
 window.readySetPlayer = { peak: () => player.peak(), get time() { return player.time; },
                           get playing() { return player.playing; }, get beat() { return player.beatAt(player.time); },
-                          get page() { return roll.page; } };
+                          get page() { return roll.page; }, get head() { return roll.head; } };
 
 function stopPreview() { player.halt(); }
 // Space (the shell's primary toggle): play or pause. The key press is a user

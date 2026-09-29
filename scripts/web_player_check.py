@@ -2,6 +2,8 @@
 through spessasynth and the shared General MIDI bank, is heard (the player's
 level meter, window.readySetPlayer.peak()), drums included, and the piano roll
 follows the playhead (it pages on, and a seek or a drag on the roll moves it).
+After a drag is let go (playing or paused, a click, a flick, outside the window,
+across a page turn, a lost capture) no frame draws the head back at the old place.
 Main page and /try/.
 
 Serves web/ itself with scripts/serve.py's handler on a free port, so no server
@@ -87,6 +89,96 @@ def long_melody():
     return smf(240, n, programs=[(0, 0)])
 
 
+def long_scale():
+    # 128 beats of piano scale at 120 bpm (64 s, four roll pages): long enough to drag while playing
+    scale = [60, 62, 64, 65, 67, 69, 71, 72]
+    return smf(120, [(0, scale[i % 8], 100, i, 0.9) for i in range(128)], programs=[(0, 0)])
+
+
+# ---- drag-release regression: the head must never show the old place after a let-go.
+# spessasynth's Sequencer answers a new currentTime a frame or so later, so a player
+# that drew seq.currentTime right after a seek drew the old place (one frame while
+# playing, for good after a quick paused click). A mouse drag the browser cancels
+# must also seek, not revert.
+SAMPLER = """() => {
+  window.__heads = [];
+  const el = document.getElementById('preview-roll');
+  el.addEventListener('pointerdown', e => { window.__pid = e.pointerId; });
+  const f = () => { window.__heads.push([performance.now(), window.readySetPlayer.head]); requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+}"""
+
+
+def roll_beat(page_no, frac, span=32):
+    """the beat a pointer at `frac` of the roll's width maps to (rollView.beatAt)"""
+    frm = page_no * span
+    b = frm + max(0.0, min(1.0, frac)) * span
+    return min(frm + span - 0.01, max(frm + 0.01, b) if frm > 0 else b)
+
+
+def drag_release(page, name, xs, *, steps=5, hold_ms=0, up_x=None, lose_capture=False):
+    """press at xs[0] (a fraction of the roll's width), move through xs[1:], let go (at
+    page pixel up_x if given); then every frame for 1 s must draw the head at the
+    let-go beat, moving on at 2 beats/s when playing (120 bpm)"""
+    loc = page.locator("#preview-roll")
+    loc.scroll_into_view_if_needed()
+    b = loc.bounding_box()
+    y = b["y"] + b["height"] / 2
+    px = lambda f: b["x"] + b["width"] * f
+    playing = page.evaluate("() => window.readySetPlayer.playing")
+    page.mouse.move(px(xs[0]), y)
+    page.mouse.down()
+    for f in xs[1:]:
+        page.mouse.move(px(f), y, steps=steps)
+    if hold_ms:
+        page.wait_for_timeout(hold_ms)
+    pg = page.evaluate("() => window.readySetPlayer.page")
+    frac = xs[-1]
+    if up_x is not None:
+        page.mouse.move(up_x, y, steps=steps)
+        frac = (up_x - b["x"]) / b["width"]
+    want = roll_beat(pg, frac)
+    t0 = page.evaluate("() => performance.now()")
+    if lose_capture:   # the browser drops the mouse's capture mid-drag: it ends there
+        page.evaluate("() => document.getElementById('preview-roll').releasePointerCapture(window.__pid)")
+    page.mouse.up()
+    page.wait_for_timeout(1000)
+    rate = 2.0 if playing else 0.0
+    off = [(round(t - t0), h) for t, h in page.evaluate(f"() => window.__heads.filter(s => s[0] >= {t0})")
+           if h is None or abs(h - (want + rate * (t - t0) / 1000)) > 0.45]
+    check(not off, f"main: {'playing' if playing else 'paused'}, {name}: the head stays at beat {want:.1f}"
+          + (f" (off in {len(off)} frames: {off[:4]})" if off else ""))
+
+
+def drag_checks(page, file):
+    page.set_input_files("#file", str(file))
+    page.wait_for_function("() => document.getElementById('status').textContent === 'Ready.'", timeout=20000)
+    page.click("#preview")
+    page.wait_for_function("() => window.readySetPlayer && window.readySetPlayer.playing", timeout=60000)
+    page.evaluate(SAMPLER)
+    slider = lambda frac: (page.eval_on_selector(
+        "#preview-bar input[type=range]",
+        f"el => {{ el.value = {round(frac * 1000)}; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }}"),
+        page.wait_for_timeout(250))
+    vw = page.viewport_size["width"]
+    for state in ("playing", "paused"):
+        if state == "paused":
+            page.locator("#preview-bar button").first.click()   # the play / pause toggle
+            page.wait_for_timeout(200)
+        slider(0.05)
+        drag_release(page, "a click", [0.6], steps=1)
+        slider(0.05)
+        drag_release(page, "a drag", [0.2, 0.5])
+        slider(0.05)
+        drag_release(page, "a fast flick", [0.2, 0.8], steps=1)
+        slider(0.05)
+        drag_release(page, "let go right of the window", [0.4, 0.9], up_x=vw + 60)
+        slider(0.24)   # beat ~31: held, the sound runs on into page 1 before the let-go on page 0
+        drag_release(page, "held across a page turn", [0.9, 0.5], hold_ms=1200)
+        slider(0.05)
+        drag_release(page, "the capture lost mid-drag", [0.2, 0.7], lose_capture=True)
+
+
 def wait_peak(page, what, timeout=15000):
     try:
         page.wait_for_function("() => window.readySetPlayer && window.readySetPlayer.peak() > 0.001",
@@ -104,6 +196,8 @@ def main():
     melody = SHOTS / "check-melody.mid"
     drums.write_bytes(drums_only())
     melody.write_bytes(long_melody())
+    longer = SHOTS / "check-long-scale.mid"
+    longer.write_bytes(long_scale())
 
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), partial(serve.Handler, directory=str(serve.WEB_DIR)))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -176,6 +270,9 @@ def main():
         sv = int(page.eval_on_selector("#preview-bar input[type=range]", "el => el.value"))
         check(abs(bd - 16) < 0.5 and not page.evaluate("() => window.readySetPlayer.playing")
               and abs(sv - 333) <= 5, f"main: dragging on the roll moves the playhead (beat {bd:.1f}, slider {sv})")
+        # ---- main page: many drags on a long file, playing and paused; the head never
+        # shows the old place after a let-go
+        drag_checks(page, longer)
         check(not errors, f"main: no console errors ({errors[:5]})")
 
         # ---- /try/: pick a catalogue piece, it plays, the roll follows

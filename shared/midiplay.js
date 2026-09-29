@@ -95,6 +95,23 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
     playBtn.el.disabled = off; stopBtn.el.disabled = off; seek.disabled = off;
   }
 
+  // spessasynth's Sequencer moves its time on the audio thread: after `currentTime = t`
+  // its getter still gives the old time until the audio thread answers with a
+  // "timeChange" (a frame or so later). Until then the player reports the target, so
+  // nothing draws the head back at the old place (a flash, or for a quick paused click
+  // the old place for good).
+  let target = null, targetUntil = 0;
+  function setTime(t) {
+    target = Math.max(0, Math.min(t, p._duration));
+    targetUntil = performance.now() + 1000;           // in case no answer ever comes
+    p.seq.currentTime = target;
+  }
+  function timeChanged(t) {
+    if (target == null || Math.abs(t - target) > 1e-3) return;   // an older seek's answer
+    target = null;
+    if (!p.playing && p.loaded) { paint(); onTick?.(p.time); }
+  }
+
   let raf = 0;
   function loop() {
     cancelAnimationFrame(raf);
@@ -133,6 +150,7 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
         this.synth = synth;
         this.seq = new lib.Sequencer(synth, { skipToFirstNoteOn: false });
         this.seq.eventHandler.addEvent("songEnded", "midiplay", () => this.ended());
+        this.seq.eventHandler.addEvent("timeChange", "midiplay", timeChanged);
       })();
       this.ready.catch(() => { this.ready = null; });       // a failed load can be tried again
       return this.ready;
@@ -159,14 +177,18 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
       try { this.midi = await this.seq.getMIDI(); } catch { this.midi = null; }
       if (my !== this.op) return false;
       this._duration = this._duration || this.midi?.duration || 0;
-      this.seq.currentTime = 0;
+      setTime(0);
       this.seq.pause();
       this.loaded = true;
       paint();
       return true;
     },
     get duration() { return this._duration; },
-    get time() { return this.seq && this.loaded ? Math.max(0, Math.min(this.seq.currentTime, this._duration)) : 0; },
+    get time() {
+      if (!this.seq || !this.loaded) return 0;
+      if (target != null && performance.now() < targetUntil) return target;   // a seek on its way
+      return Math.max(0, Math.min(this.seq.currentTime, this._duration));
+    },
     /** a moment in seconds as beats (quarter notes), through the file's own tempo map */
     beatAt(t) {
       if (this.midi) {
@@ -190,7 +212,8 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
       paint();
       onTick?.(scrubAt);
     },
-    /** the drag let go at t (null: it was cancelled, the sound stays where it is) */
+    /** the drag let go at t (null: a touch was taken over for scrolling, the sound
+     *  stays where it is) */
     endScrub(t) {
       scrubAt = null;
       if (t != null) { this.seek(t); return; }
@@ -200,8 +223,8 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
     play(at) {
       if (!this.loaded) { paint(); return; }
       this.unlock();
-      if (at != null) this.seq.currentTime = Math.max(0, Math.min(at, this._duration));
-      else if (this.seq.currentTime >= this._duration - 0.05) this.seq.currentTime = 0;
+      if (at != null) setTime(at);
+      else if (this.time >= this._duration - 0.05) setTime(0);
       this.fade(1);
       this.seq.play();
       this.playing = true;
@@ -218,7 +241,7 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
     stop() {
       if (!this.loaded) return;
       this.seq.pause();
-      this.seq.currentTime = 0;
+      setTime(0);
       this.seq.pause();
       this.playing = false;
       scrubAt = null;
@@ -229,7 +252,7 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
     toggle() { this.playing ? this.pause() : this.play(); },
     seek(t) {
       if (!this.loaded) return;
-      this.seq.currentTime = Math.max(0, Math.min(t, this._duration));
+      setTime(t);
       if (!this.playing) { this.seq.pause(); paint(); onTick?.(this.time); }
     },
     /** stop without touching the bar: a new file is on its way */
@@ -243,7 +266,7 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
       this.playing = false;
       scrubAt = null;
       this.seq.pause();
-      this.seq.currentTime = 0;
+      setTime(0);
       this.seq.pause();
       paint();
       onTick?.(null);
@@ -298,6 +321,8 @@ export function rollView(canvas, { beats: span = 32 } = {}) {
       view.draw(last);
     },
     get page() { return page; },
+    /** the beat the playhead was last drawn at (null: none drawn) */
+    get head() { return last; },
     /** the beat at `frac` (0 left edge, 1 right edge) of the page on show, kept a
      *  hair inside it so a click at an edge doesn't turn the page */
     beatAt(frac) {
