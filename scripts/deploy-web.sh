@@ -33,10 +33,14 @@ cp -R "$root/web/try" "$root/web/favicons" "$target/"
 mkdir -p "$target/pkg"
 cp "$root/web/pkg/tabridge.js" "$root/web/pkg/tabridge_bg.wasm" "$target/pkg/"
 # Shared files (serve.py mounts ../shared at /shared locally; here it's a folder).
-mkdir -p "$target/shared/vendor/design/fonts"
-cp "$root/shared/roll.js" "$root/shared/sources.js" "$target/shared/"
+mkdir -p "$target/shared/vendor/design/fonts" "$target/shared/vendor/design/sound"
+cp "$root/shared/roll.js" "$root/shared/sources.js" "$root/shared/midiplay.js" "$root/shared/midiplay.css" "$target/shared/"
 cp "$root"/shared/vendor/design/*.css "$root"/shared/vendor/design/*.js "$target/shared/vendor/design/"
 cp "$root"/shared/vendor/design/fonts/* "$target/shared/vendor/design/fonts/"
+# The preview's sounds: the design system's shared General MIDI bank (and its
+# NOTICE), played by the vendored spessasynth (and its LICENSE and NOTICE).
+cp "$root/shared/vendor/design/sound/gm.sf3" "$root/shared/vendor/design/sound/NOTICE" "$target/shared/vendor/design/sound/"
+cp -R "$root/shared/vendor/spessasynth" "$target/shared/vendor/"
 
 # The hosted proxy, and no local Live template on a static host.
 printf '{"proxy": "%s", "template": false}\n' "$PROXY_URL" > "$target/site.json"

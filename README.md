@@ -75,6 +75,14 @@ FreeMIDI's two-step cookie download server-side.
 import, search, pick, downloads, preview, colour modes); it needs the server
 running and the project `.venv` with Playwright.
 
+The preview (main page and `/try/`) plays through `shared/midiplay.js`:
+spessasynth (vendored in `shared/vendor/spessasynth/`) with the design
+system's shared General MIDI bank (`shared/vendor/design/sound/gm.sf3`, the
+same sounds as every other tool that plays MIDI), a small play / stop / seek
+bar, and a piano roll that follows the playhead. Nothing loads from a CDN.
+`scripts/web_player_check.py` checks in headless Chrome that it is heard
+(drums included) and that the roll follows; it serves `web/` itself.
+
 **Prerequisites:** [`wasm-pack`](https://rustwasm.github.io/wasm-pack/installer/)
 and Python 3 (standard library only, no `pip install`).
 
@@ -129,7 +137,8 @@ cargo run --example musicxml_to_als -- score.musicxml out.als
 ## Look
 
 Both UIs use the shared design system (`~/Playground/design`, category
-`transform`), synced into `shared/vendor/design/` with its `sync.sh`. The web
+`transform`), synced into `shared/vendor/design/` with its `sync.sh`
+(`sync.sh shared --sound`, so the preview's soundfont comes too). The web
 page links its `tokens.css`; the extension build inlines it, fonts included,
 into the modal. `shared/roll.js` draws piano rolls for both, following the
 system's `roll.md`. `scripts/modal_preview.py` renders the extension modal

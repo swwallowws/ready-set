@@ -1,0 +1,8 @@
+/* The MIDI preview bar (midiplay.js): play and stop as small icon buttons, the design
+   system's thin accent range as the seek line, the time in mono. Link after tokens.css,
+   iconbutton.css and range.css. */
+.midiplay { display: flex; align-items: center; gap: var(--space); min-width: 0; }
+.midiplay .midiplay-seek { flex: 1 1 120px; min-width: 80px; gap: 0; }
+.midiplay .midiplay-seek input[type="range"] { margin: 0; }
+.midiplay .midiplay-seek input[type="range"]:disabled { cursor: default; opacity: .45; }
+.midiplay-time { flex: none; color: var(--ink-mut); font: 12px/1 var(--font-mono); font-variant-numeric: tabular-nums; }

@@ -12,6 +12,9 @@
      Paths stay relative so the page also works under a subpath (GitHub Pages). -->
 <link rel="stylesheet" href="./shared/vendor/design/tokens.css" />
 <link rel="stylesheet" href="./shared/vendor/design/valuebox.css" />
+<link rel="stylesheet" href="./shared/vendor/design/iconbutton.css" />
+<link rel="stylesheet" href="./shared/vendor/design/range.css" />
+<link rel="stylesheet" href="./shared/midiplay.css" />
 <script src="./shared/roll.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -95,11 +98,8 @@
   #status.err { color: var(--ink); font-weight: 600; }
   #status.err::before { content: "Error: "; }
   #player-host { margin-top: calc(var(--space) * 1.5); }
-  midi-player { width: 100%; display: block; }
-  midi-player::part(control-panel) { background: var(--ground); border: var(--hairline); border-radius: 0; }
-  midi-player::part(play-button) { color: var(--ink); background: var(--ground-2); border: var(--hairline); border-radius: 0; }
-  midi-player::part(time) { color: var(--ink-mut); font-family: var(--font-mono); }
-  midi-player::part(seek-bar) { accent-color: var(--acc); }
+  canvas#preview-roll { width: 100%; height: 160px; display: block; border: var(--hairline); }
+  #preview-bar { margin-top: var(--space); }
   #template-state { margin-top: var(--space); font: 11.5px var(--font-mono); color: var(--ink-mut); }
 
   /* online search ------------------------------------------------------------ */
@@ -263,7 +263,10 @@
         <div class="act"><button id="download" class="primary" type="button" disabled>Download</button></div>
       </div>
       <div id="status" role="status"></div>
-      <div id="player-host" hidden></div>
+      <div id="player-host" hidden>
+        <canvas id="preview-roll" aria-label="Piano roll of the preview, following the playhead"></canvas>
+        <div id="preview-bar"></div>
+      </div>
       <div id="template-state"></div>
     </div>
   </section>

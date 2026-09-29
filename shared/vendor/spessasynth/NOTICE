@@ -1,0 +1,15 @@
+Vendored for the website's MIDI preview (no CDN at view time), copied from
+Rearranged's vendor/spessasynth.
+
+spessasynth_lib 4.3.14, spessasynth_core 4.3.22 and stb-vorbis 0.0.6, all by
+spessasus, all under the Apache License 2.0 (see LICENSE in this folder).
+https://github.com/spessasus/spessasynth_lib
+
+Files:
+- spessasynth_lib.min.js: spessasynth_lib's dist/index.js bundled with its
+  dependencies into one ES module (esbuild --bundle --format=esm --minify).
+- spessasynth_processor.min.js: spessasynth_lib's dist file, unchanged.
+
+To rebuild: npm install spessasynth_lib@4.3.14 esbuild in a scratch folder,
+then run esbuild as above on node_modules/spessasynth_lib/dist/index.js and
+copy dist/spessasynth_processor.min.js.

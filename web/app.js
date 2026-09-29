@@ -35,6 +35,7 @@ import {
   firstFreemidiArtist, srcLabel, recLabel,
 } from "./shared/sources.js";
 import { searchCatalog } from "./try/search.js";
+import { midiPlayer, rollView } from "./shared/midiplay.js";
 
 // What this host offers: { proxy, template }. `proxy` is the proxy's base URL
 // ("./" for serve.py's same-origin proxy, "" for none). A missing or
@@ -419,69 +420,62 @@ $("download").addEventListener("click", async () => {
   }
 });
 
-// ---- Preview: render the .mid in-browser and play it in an embedded player --
-// Uses html-midi-player (a web component wrapping a General MIDI soundfont
-// player) for play/pause + a seekable playhead. It's lazy-loaded from a CDN on
-// first use via dynamic import(), so a CDN/network failure only affects Preview,
-// never the rest of the app.
-const PLAYER_LIB = "https://cdn.jsdelivr.net/npm/html-midi-player@1.5.0/+esm";
-
-let player = null;        // the <midi-player> element, once created
-let previewUrl = null;    // object URL of the current preview .mid
+// ---- Preview: render the .mid in-browser and play it --------------------------
+// shared/midiplay.js: spessasynth with the design system's shared General MIDI
+// bank (the same sounds as every other tool here), a small play / stop / seek
+// bar, and a piano roll that follows the playhead. Everything is vendored, so
+// nothing loads from a CDN.
+let player = null;        // midiPlayer, made on the first Preview
+let roll = null;          // rollView over #preview-roll
 let previewGen = 0;       // bumped per render; makes superseded renders bail out
 
 // Stop any playing preview and hide the player. Bumping previewGen also makes
 // any in-flight render bail before it can start audio for the old selection.
 function stopPreview() {
   previewGen++;
-  if (player) { try { player.stop(); } catch { /* player not ready */ } }
+  if (player) player.halt();
   $("player-host").hidden = true;
 }
 
-async function ensurePlayer() {
+function ensurePlayer() {
   if (player) return player;
-  await import(PLAYER_LIB); // registers the <midi-player> custom element
-  player = document.createElement("midi-player");
-  player.setAttribute("sound-font", ""); // "" = the player's default GM soundfont
-  $("player-host").appendChild(player);
+  roll = rollView($("preview-roll"));
+  player = midiPlayer($("preview-bar"), {
+    onTick: (t) => roll.draw(t == null ? null : player.beatAt(t)),
+  });
+  window.addEventListener("resize", () => roll.draw(player.playing || player.time ? player.beatAt(player.time) : null));
+  window.addEventListener("tabridge-theme", () => roll.repaint());
+  window.TabridgeRoll.onSchemeChange(() => roll.repaint());
+  // for checks: is it heard, where is it
+  window.readySetPlayer = { peak: () => player.peak(), get time() { return player.time; },
+                            get playing() { return player.playing; }, get beat() { return player.beatAt(player.time); },
+                            get page() { return roll.page; } };
   return player;
 }
 
-// Build the .mid for the CURRENT Transpose setting, load it into the embedded
-// player (which owns play/pause/seek), and start playback. Re-callable: changing
-// Transpose re-renders with the new shift. The `previewGen` token makes a
-// superseded render ignore its own async callbacks so rapid re-renders can't race.
+// Build the .mid for the CURRENT Transpose setting, load it into the player and
+// start playback. Re-callable: changing Transpose re-renders with the new shift,
+// from the same moment. The `previewGen` token makes a superseded render ignore
+// its own async callbacks so rapid re-renders can't race.
 async function loadPreview() {
   const myGen = ++previewGen;
   const semitones = parseInt($("semitones").value, 10) || 0;
+  ensurePlayer().unlock();                  // inside the click, before any await
+  const at = player.playing ? player.time : 0;
   $("preview").disabled = true;
   $("preview").textContent = "Loading…";
   try {
     setStatus("Rendering preview…");
     const bytes = await buildBytes("mid", semitones);
     if (myGen !== previewGen) return;
-
-    await ensurePlayer();
-    if (myGen !== previewGen) return;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    previewUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/midi" }));
-
-    // Setting src kicks off async parse + soundfont load; wait for it to finish
-    // (or fall back after a beat) before starting so start() has something ready.
-    await new Promise((resolve) => {
-      player.addEventListener("load", resolve, { once: true });
-      player.src = previewUrl;
-      setTimeout(resolve, 8000); // safety net if "load" never fires
-    });
-    if (myGen !== previewGen) return;
-
+    setStatus("Loading sounds…");
+    if (!(await player.load(bytes)) || myGen !== previewGen) return;
     $("player-host").hidden = false;
+    roll.setSong(JSON.parse(midi_build_notes_json(bytes, 0)));
+    player.play(at);
     setStatus(`Preview ready (${semitones >= 0 ? "+" : ""}${semitones} st). Play/seek below.`);
-    // start() may return a promise or nothing depending on player state; wrap so a
-    // non-promise return can't throw.
-    Promise.resolve(player.start()).catch(() => {});
   } catch (err) {
-    if (myGen === previewGen) setStatus(`Preview failed: ${err}`, true);
+    if (myGen === previewGen) setStatus(`Preview failed: ${err.message || err}`, true);
   } finally {
     if (myGen === previewGen) { $("preview").disabled = false; $("preview").textContent = "Preview"; }
   }
@@ -497,7 +491,7 @@ $("preview").addEventListener("click", () => { if (selected) loadPreview(); });
 
 // Changing Transpose while a preview is showing re-renders it with the new shift.
 $("semitones").addEventListener("change", () => {
-  if (player && !$("player-host").hidden) loadPreview();
+  if (player && !$("player-host").hidden) loadPreview();   // a change event is a user gesture too
 });
 
 function downloadBytes(bytes, name) {
