@@ -4,11 +4,11 @@ simply jam.
 
 Formerly tabridge; the code, crate and commands keep that name.
 
-Turn your own scores and MIDI files into an Ableton Live set you can actually
-play with.
+Turn your own tabs, scores and MIDI files into an Ableton Live set you can
+actually play with.
 
-Open a MusicXML or MIDI file, hear it, and export either a multi-track Ableton
-project (`.als`) or a plain Standard MIDI file (`.mid`). The `.als` opens in Live 12 with named
+Open a MusicXML, MIDI or Guitar Pro file, hear it, and export either a
+multi-track Ableton Live set (`.als`) or a plain Standard MIDI file (`.mid`). The `.als` opens in Live 12 with named
 tracks, one clip per song section in the Session view, a full arrangement, the
 tempo, and stock instruments so it makes sound out of the box. Transpose shifts
 every track except drums.
