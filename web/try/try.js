@@ -25,13 +25,20 @@ const { rail } = demoShell($("demo"), {
     { id: "pick", label: "Pick one", hint: "Starts right away" },
     { id: "midi", label: "Take the MIDI" },
   ],
-  // Reads "The full version with the Ableton Live extension is here."
-  full: { label: "version with the Ableton Live extension", href: "../" },
-  endText: "Done. Try another name, or keep listening.",
+  // The rail's title stays a plain "Try it out!"; the way to the full version (the
+  // website) comes at the end of the tour, as in every demo.
+  endText: "That was the first step. ",
   onReset: resetDemo,
-  // Space plays or stops the picked piece, the same as the player's own button.
-  primary: { toggle: () => togglePlayback(), label: "play" },
+  // Space plays or stops the picked piece, the same as the player's own button; no legend.
+  primary: { toggle: () => togglePlayback() },
 });
+// After the tour: the full version, in a new tab so the demo stays where it is.
+{
+  const full = Object.assign(document.createElement("a"), {
+    className: "full-link", href: "../", target: "_blank", rel: "noopener", textContent: "Full version ↗",
+  });
+  document.querySelector(".steprail-end")?.append(full);
+}
 
 // ---- icon buttons: actions show a symbol, the word stays as label and tooltip ----
 for (const id of ["clear-q", "search-go", "change-pick", "download"]) iconButton($(id));
