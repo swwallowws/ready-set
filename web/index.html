@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="./shared/vendor/design/range.css" />
 <link rel="stylesheet" href="./shared/vendor/design/playhead.css" />
 <link rel="stylesheet" href="./shared/midiplay.css" />
+<link rel="stylesheet" href="./shared/vendor/design/themeswitch.css" />
 <script src="./shared/roll.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -56,9 +57,6 @@
   .bar-inner { max-width: 880px; margin: 0 auto; padding: var(--space) 16px; display: flex; align-items: center; gap: var(--space); }
   .wordmark { font: 700 16px/1 var(--font-mono); display: flex; align-items: center; gap: var(--space); margin-right: auto; }
   .wordmark svg { width: 16px; height: 16px; }
-  .modes { display: flex; }
-  .modes button { padding: 4px var(--space); font: 500 12px/1.4 var(--font-mono); }
-  .modes button + button { border-left: none; }
 
   /* hero --------------------------------------------------------------- */
   .hero { margin-top: calc(var(--space) * 6); }
@@ -178,11 +176,7 @@
         <path d="M1.5 12.5C4 12.5 5 4 8.5 4c2.6 0 3.4 5 6 5" stroke="var(--acc)" stroke-width="2"/>
       </svg>Ready Set
     </div>
-    <div class="modes" role="group" aria-label="Colour mode">
-      <button type="button" data-mode="" aria-pressed="true">System</button>
-      <button type="button" data-mode="paper" aria-pressed="false">Paper</button>
-      <button type="button" data-mode="night" aria-pressed="false">Night</button>
-    </div>
+    <div class="modes"></div>
   </div>
 </div>
 
@@ -302,24 +296,14 @@
 <script type="module">
   import { valueBox } from "./shared/vendor/design/valuebox.js";
   import { NOTES as notes, BEATS, TOTAL, heroPlayer } from "./hero.js";
-  // ---- colour mode: System / Paper / Night -----------------------------------
-  // Stamps data-theme on :root (tokens.css flips color-scheme from it). ?theme=
-  // or a saved choice seeds it; the canvas redraws on every change.
-  const root = document.documentElement;
-  const store = {
-    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
-  };
-  const modeBtns = [...document.querySelectorAll('.modes button')];
-  function setMode(m, save) {
-    if (m) root.setAttribute('data-theme', m); else root.removeAttribute('data-theme');
-    modeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === (m || ''))));
-    if (save) store.set('tabridge-mode', m || null);
-    window.dispatchEvent(new Event('tabridge-theme'));
-  }
-  const param = new URLSearchParams(location.search).get('theme');
-  setMode(param === 'paper' || param === 'night' ? param : (store.get('tabridge-mode') || ''), false);
-  modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode, true)));
+  import { themeSwitch } from "./shared/vendor/design/themeswitch.js";
+  // ---- colour mode: System / Paper / Night, as the design system's symbols ----
+  // ?theme= or a saved choice seeds it; the canvas redraws on every change.
+  const root = document.documentElement;   // the palette reads the theme's tokens from here
+  themeSwitch(document.querySelector('.modes'), {
+    storageKey: 'tabridge-mode',
+    onChange: () => window.dispatchEvent(new Event('tabridge-theme')),
+  });
 
   // ---- playable bassline demo (spessasynth + the shared bank, drawn on a canvas) --
   // The bar, its bends and vibrato, and how it sounds live in hero.js.
