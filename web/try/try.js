@@ -18,8 +18,8 @@ const ROLL_BEATS = 32;   // the roll shows the opening eight bars (in 4/4)
 // ---- demo shell: step rail beside the smallest live piece of the site ------------
 const { rail } = demoShell($("demo"), {
   product: "Ready Set",
-  title: "From a name to MIDI in three clicks.",
-  intro: "Pick a public-domain piece, then bring it into Ableton Live or any DAW.",
+  title: "From a name to MIDI you can jam with.",
+  intro: "Pick a public-domain piece, then bring it into Ableton Live or any music software.",
   steps: [
     { id: "search", label: "Type a name", hint: "Try one below" },
     { id: "pick", label: "Pick one", hint: "Starts right away" },
