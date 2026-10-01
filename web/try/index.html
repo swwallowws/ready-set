@@ -57,12 +57,15 @@
       <span id="transpose-label" class="ctl-label">Transpose</span>
       <span id="transpose"></span>
       <div id="player-host"></div>
-      <button id="download" type="button" data-icon="download" data-label="Download .mid" hidden></button>
     </div>
     <div id="status" role="status"></div>
 
     <div class="take" id="take" hidden>
-      <p class="ready">MIDI ready: open it in any music software.</p>
+      <p class="ready">Ready: an Ableton Live set to jam with, or MIDI for any music software.</p>
+      <div class="take-buttons">
+        <button id="download-set" class="primary" type="button">Ableton Live set (.als)</button>
+        <button id="download" type="button">MIDI (.mid)</button>
+      </div>
       <p class="credit" id="credit"></p>
     </div>
   </div>

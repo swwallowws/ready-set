@@ -1,10 +1,10 @@
 // tabridge /try/: search a frozen public-domain catalogue by name, listen, and
-// take the MIDI. The catalogue (catalog/catalog.json + .mid files) is built by
+// take it as an Ableton Live set or as MIDI. The catalogue (catalog/catalog.json + .mid files) is built by
 // scripts/build_try_catalog.py, so the page is static: no proxy, no network
 // search. Reading the MIDI, the roll, the preview player and the download use
 // the same pieces as the main page (web/app.js).
 
-import init, { midi_build_notes_json, midi_transpose } from "../pkg/tabridge.js";
+import init, { midi_build_als, midi_build_notes_json, midi_transpose } from "../pkg/tabridge.js";
 import { demoShell } from "../shared/vendor/design/demoshell.js";
 import { valueBox } from "../shared/vendor/design/valuebox.js";
 import { iconButton } from "../shared/vendor/design/iconbutton.js";
@@ -18,12 +18,12 @@ const ROLL_BEATS = 32;   // the roll shows the opening eight bars (in 4/4)
 // ---- demo shell: step rail beside the smallest live piece of the site ------------
 const { rail } = demoShell($("demo"), {
   product: "Ready Set",
-  title: "From a name to MIDI you can jam with.",
+  title: "From a name to a set you can jam with.",
   intro: "Pick a public-domain piece, then bring it into Ableton Live or any music software.",
   steps: [
     { id: "search", label: "Type a name", hint: "Try one below" },
     { id: "pick", label: "Pick one", hint: "Starts right away" },
-    { id: "midi", label: "Take the MIDI" },
+    { id: "take", label: "Take the set", hint: "Or the MIDI, for any music software" },
   ],
   // The rail's title stays a plain "Try it out!"; the way to the full version (the
   // website) comes at the end of the tour, as in every demo.
@@ -41,7 +41,7 @@ const { rail } = demoShell($("demo"), {
 }
 
 // ---- icon buttons: actions show a symbol, the word stays as label and tooltip ----
-for (const id of ["clear-q", "search-go", "change-pick", "download"]) iconButton($(id));
+for (const id of ["clear-q", "search-go", "change-pick"]) iconButton($(id));
 
 // ---- catalogue -----------------------------------------------------------------
 let catalogue = null;
@@ -257,16 +257,21 @@ window.addEventListener("resize", () => roll.draw(rollBeat()));
 window.TabridgeRoll.onSchemeChange(() => roll.repaint());
 document.fonts && document.fonts.ready.then(() => roll.repaint());
 
-// ---- take the MIDI ------------------------------------------------------------------
+// ---- take the set or the MIDI ----------------------------------------------------------
+// Both through the same writers the main page uses, at whatever transpose is
+// currently dialled in (free play, not a rail step). Either one ticks the step.
+const fileName = (ext) => `${[slug(current.row.artist), slug(current.row.title)].filter(Boolean).join("-") || "song"}.${ext}`;
+$("download-set").addEventListener("click", async () => {
+  if (!current) return;
+  await wasmReady;
+  downloadBytes(midi_build_als(current.bytes, trBox.value), fileName("als"));
+  rail.done("take");
+});
 $("download").addEventListener("click", async () => {
   if (!current) return;
   await wasmReady;
-  // Through the same MIDI writer the main page uses for .mid downloads, at
-  // whatever transpose is currently dialled in (free play, not a rail step).
-  const bytes = midi_transpose(current.bytes, trBox.value);
-  const name = `${[slug(current.row.artist), slug(current.row.title)].filter(Boolean).join("-") || "song"}.mid`;
-  downloadBytes(bytes, name);
-  rail.done("midi");
+  downloadBytes(midi_transpose(current.bytes, trBox.value), fileName("mid"));
+  rail.done("take");
 });
 
 // Same as downloadBytes() in web/app.js.

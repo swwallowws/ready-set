@@ -73,6 +73,7 @@ canvas#roll { width: 100%; height: 180px; display: block; border: var(--hairline
 
 .take { margin-top: calc(var(--space) * 2); padding-top: calc(var(--space) * 2); border-top: var(--hairline); animation: settle 900ms ease both; }
 .take .ready { margin: 0 0 var(--space); font-weight: 600; }
+.take-buttons { display: flex; flex-wrap: wrap; gap: var(--space); }
 .take .credit { margin: calc(var(--space) * 1.5) 0 0; color: var(--ink-mut); font: 12px/1.5 var(--font-mono); }
 
 @keyframes settle { from { opacity: 0; } to { opacity: 1; } }
