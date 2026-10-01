@@ -366,9 +366,9 @@ async function pickFile(file) {
     const title = file.name.replace(/\.(musicxml|xml|midi?|mxl|gpx?|gp[345])$/i, "");
     let song, kind;
     if (isMidi) {
-      kind = "MIDI";
-      selected = { kind: "midi", artist: "", title, bytes };
-      song = JSON.parse(midi_build_notes_json(bytes, 0));
+      // A MIDI file already opens in Ableton Live: drag it into a set. Ready Set is for what
+      // Live can't open. (Search results still arrive as MIDI and become a set.)
+      throw new Error("MIDI files open in Ableton Live directly: drag one into your set. Ready Set takes Guitar Pro and MusicXML files");
     } else if (is_guitarpro(bytes)) {
       kind = "Guitar Pro";
       selected = { kind: "guitarpro", artist: "", title, bytes };
@@ -392,7 +392,9 @@ async function pickFile(file) {
     $("picked").scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (err) {
     selected = null;
-    setStatus(`Couldn't read ${file.name}: ${err.message || err}`, true);
+    const msg = String(err.message || err);
+    // A MIDI file was read fine; it just isn't what Ready Set is for: say only that.
+    setStatus(msg.startsWith("MIDI files") ? `${msg}.` : `Couldn't read ${file.name}: ${msg}`, true);
   }
 }
 

@@ -472,11 +472,11 @@ export function activate(activation: ActivationContext) {
         try {
           const bytes = new Uint8Array(Buffer.from(String(payload.data || ""), "base64"));
           const isMidi = bytes.length >= 4 && Buffer.from(bytes.subarray(0, 4)).toString("latin1") === "MThd";
-          fileJson = isMidi
-            ? tabridge.midi_build_notes_json(bytes, 0)
-            : tabridge.is_guitarpro(bytes)
-              ? tabridge.guitarpro_build_notes_json(bytes, 0)
-              : tabridge.musicxml_build_notes_json(Buffer.from(bytes).toString("utf8"), 0);
+          // A MIDI file already opens in Live: drag it into the set. This is for what Live can't open.
+          if (isMidi) throw new Error("MIDI files open in Live directly: drag one into your set. Ready Set takes Guitar Pro and MusicXML files");
+          fileJson = tabridge.is_guitarpro(bytes)
+            ? tabridge.guitarpro_build_notes_json(bytes, 0)
+            : tabridge.musicxml_build_notes_json(Buffer.from(bytes).toString("utf8"), 0);
           const song: SongJson = JSON.parse(fileJson);
           const title = name.replace(/\.(musicxml|xml|midi?|gpx?|gp[345])$/i, "");
           fileRec = { uid: "file_0", id: 0, artist: "", title, tracks: song.tracks.length, source: "file" };

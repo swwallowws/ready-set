@@ -4,10 +4,10 @@ simply jam.
 
 Formerly tabridge; the code, crate and commands keep that name.
 
-Turn your own tabs, scores and MIDI files into an Ableton Live set you can
-actually play with.
+Turn your own tabs and scores into an Ableton Live set you can actually play
+with.
 
-Open a MusicXML, MIDI or Guitar Pro file, hear it, and export either a
+Open a Guitar Pro or MusicXML file, hear it, and export either a
 multi-track Ableton Live set (`.als`) or a plain Standard MIDI file (`.mid`). The `.als` opens in Ableton Live 12 with named
 tracks, one clip per song section in the Session view, a full arrangement, the
 tempo, and stock instruments so it makes sound out of the box. Transpose shifts
@@ -20,12 +20,14 @@ export code runs in two places: a local web app and an Ableton extension.
 
 | Source | Kind | How | Status |
 |---|---|---|---|
-| MusicXML | your own `.musicxml`/`.xml` | file import | main path |
-| MIDI | your own `.mid` | file import | main path |
 | Guitar Pro | your own `.gp`, `.gpx`, `.gp5`, `.gp4`, `.gp3` | file import | main path |
+| MusicXML | your own `.musicxml`/`.xml` | file import | main path |
 | Mutopia | public-domain scores | online search | always on |
 | BitMidi | fan-made MIDI | online search | opt-in, fine for practice, not for release |
 | FreeMIDI | fan-made MIDI | online search | opt-in, fine for practice, not for release |
+
+MIDI files open in Ableton Live directly, so Ready Set doesn't take them as a
+file; pieces found by online search still arrive as MIDI and become a set.
 
 Your own files are the main input: Ready Set converts what you already have, and
 the files are parsed locally (in the browser, or in the extension host) and
@@ -65,7 +67,7 @@ host fetches over the network).
 
 ## Web app
 
-A local page: drop in a MusicXML or MIDI file (or search online), choose `.als`
+A local page: drop in a Guitar Pro or MusicXML file (or search online), choose `.als`
 or `.mid` plus a transpose, preview, download. The WASM does all the parsing and
 encoding in the browser. A small Python proxy forwards the allow-listed source
 requests for online search so the browser can get around CORS, and it runs

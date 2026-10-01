@@ -344,8 +344,8 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
     if (S.mode === "start") {
       view.innerHTML =
         '<label class="drop" id="drop" for="file">' +
-          '<div class="big">Drop a MusicXML, MIDI or Guitar Pro file or <span class="pick">choose one</span></div>' +
-          '<input type="file" id="file" accept=".musicxml,.xml,.mid,.midi,.gp,.gpx,.gp3,.gp4,.gp5" hidden />' +
+          '<div class="big">Drop a Guitar Pro or MusicXML file or <span class="pick">choose one</span></div>' +
+          '<input type="file" id="file" accept=".gp,.gpx,.gp3,.gp4,.gp5,.musicxml,.xml" hidden />' +
         '</label>' +
         (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
         '<div class="sect"><label class="cap" for="q">Or search online</label>' +
