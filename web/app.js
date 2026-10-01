@@ -115,7 +115,7 @@ const transpose = valueBox($("semitones"), {
 let templateXml = null;
 async function ready() {
   await init();
-  const none = "Instruments: none (minimal template, add them in Live)";
+  const none = "Instruments: none (minimal template, add them in Ableton Live)";
   // Only the local server can have a template (it's gitignored, never deployed),
   // so the static site doesn't ask for one.
   if (!(await site).template) { $("template-state").textContent = none; return; }
@@ -123,7 +123,7 @@ async function ready() {
     const res = await fetch("./template.als.xml");
     if (res.ok) {
       templateXml = await res.text();
-      $("template-state").textContent = "Instruments: included (from your Live template)";
+      $("template-state").textContent = "Instruments: included (from your Ableton Live template)";
     } else {
       $("template-state").textContent = none;
     }
