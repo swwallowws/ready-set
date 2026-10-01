@@ -8,7 +8,7 @@ Turn your own tabs, scores and MIDI files into an Ableton Live set you can
 actually play with.
 
 Open a MusicXML, MIDI or Guitar Pro file, hear it, and export either a
-multi-track Ableton Live set (`.als`) or a plain Standard MIDI file (`.mid`). The `.als` opens in Live 12 with named
+multi-track Ableton Live set (`.als`) or a plain Standard MIDI file (`.mid`). The `.als` opens in Ableton Live 12 with named
 tracks, one clip per song section in the Session view, a full arrangement, the
 tempo, and stock instruments so it makes sound out of the box. Transpose shifts
 every track except drums.
@@ -116,7 +116,7 @@ requests), Mutopia from the frozen `/try/` catalogue, and leaves FreeMIDI out.
 
 ## Ableton extension
 
-`extension/` is an Ableton Extensions SDK extension (Live 12.4.5, Node host). It
+`extension/` is an Ableton Extensions SDK extension (Ableton Live 12.4.5, Node host). It
 adds a right-click action (**Import a song…**) that opens a file (or searches
 online), previews it, and builds it straight into the Set you have open: one MIDI track per part, a Session
 scene per section, an arrangement clip, a Pitch device for transpose, and audible
@@ -125,7 +125,7 @@ stock instruments (a synthesized kit for drums). The whole build is one undo ste
 ```sh
 cd extension
 npm install
-npm start          # builds the bundle and attaches to a running Live
+npm start          # builds the bundle and attaches to a running Ableton Live
 ```
 
 For online search, the extension routes its fetches through the same
@@ -151,12 +151,12 @@ Both UIs use the shared design system (`~/Playground/design`, category
 page links its `tokens.css`; the extension build inlines it, fonts included,
 into the modal. `shared/roll.js` draws piano rolls for both, following the
 system's `roll.md`. `scripts/modal_preview.py` renders the extension modal
-outside Live for a visual check.
+outside Ableton Live for a visual check.
 
 ## Design
 
 [`SPEC.md`](SPEC.md) has the full design. The short version: a `Song → Track →
 Measure → Voice → Beat → Note` model with absolute MIDI pitch and rational
 durations, a `Source::load` trait for adding inputs, a `midly`-based MIDI writer,
-and an `.als` writer that clones a real Live 12 template and injects the tracks,
+and an `.als` writer that clones a real Ableton Live 12 template and injects the tracks,
 clips, scenes, and tempo.
