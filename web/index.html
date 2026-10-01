@@ -311,6 +311,7 @@
   let transpose = 0, playhead = null, pal = null;
   const canvas = document.getElementById('roll'), ctx = canvas.getContext('2d');
   const R = window.TabridgeRoll;
+  const root = document.documentElement;   // the palette reads the theme's tokens from here
   const refreshPalette = () => { pal = R.palette(root); draw(); };
 
   function fit() {
