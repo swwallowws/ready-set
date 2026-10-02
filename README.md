@@ -109,11 +109,9 @@ Open <http://localhost:8000> and stop with `Ctrl-C`. If you started it detached,
 `lsof -ti:8000 | xargs kill` frees the port. See [`docs/browser.md`](docs/browser.md)
 for how the proxy and WASM bindings fit together.
 
-The public site is a static build at
-<https://swwallowws.github.io/ready-set-web/>, from the built-only repo
-`swwallowws/ready-set-web`. `scripts/deploy-web.sh --stage DIR` builds and
-stages it; `--push CHECKOUT` also commits and pushes a clone of that repo.
-Without the proxy it searches BitMidi directly (it allows cross-origin
+The public site is a static build at <https://swwallowws.github.io/ready-set/>,
+this repo's GitHub Pages: CI builds it on every push to `main` and publishes it.
+`scripts/deploy-web.sh --stage DIR` builds and stages it. Without the proxy it searches BitMidi directly (it allows cross-origin
 requests), Mutopia from the frozen `/try/` catalogue, and leaves FreeMIDI out.
 
 ## Ableton extension

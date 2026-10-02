@@ -1,9 +1,9 @@
 # Ready Set
 
-simply jam. Built copy; code lives elsewhere.
+simply jam.
 
-Turn your scores and MIDI files into an Ableton Live set, in the browser:
-https://swwallowws.github.io/ready-set-web/
+Open a tab or a score (Guitar Pro or MusicXML) as a playable Ableton Live set, in
+the browser: https://swwallowws.github.io/ready-set/
 
-This repository holds only the built site. Files you open stay in your browser
-and are never uploaded.
+This is the built site, published from https://github.com/swwallowws/ready-set by
+its CI. Files you open stay in your browser and are never uploaded.
