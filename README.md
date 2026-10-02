@@ -94,7 +94,7 @@ sounding. `node scripts/test_hero.mjs` checks the curves and the MIDI;
 pitch heard follows the curve within a few cents, at two Transpose settings and
 while Transpose moves.
 
-**Prerequisites:** [`wasm-pack`](https://rustwasm.github.io/wasm-pack/installer/)
+**Prerequisites:** [`wasm-pack`](https://crates.io/crates/wasm-pack) (`cargo install wasm-pack`)
 and Python 3 (standard library only, no `pip install`).
 
 ```sh

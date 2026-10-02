@@ -46,7 +46,7 @@ jobs:
       - name: Every link in the READMEs answers
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --no-progress --max-retries 3 --accept 200,206,429 README.md web/deploy/README.md
+          args: --no-progress --exclude-loopback --max-retries 3 --accept 200,206,429 README.md web/deploy/README.md
 
   site:
     runs-on: ubuntu-latest
