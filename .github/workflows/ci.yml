@@ -1,9 +1,22 @@
 name: CI
 
+# Tests, the README's links, then the website: built from this commit by
+# scripts/deploy-web.sh and published to GitHub Pages on every push to main, so
+# the live site never drifts from the code. Settings > Pages > Source: GitHub Actions.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -25,3 +38,53 @@ jobs:
         run: |
           node scripts/test_hero.mjs
           node scripts/test_try_search.mjs
+
+  readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Every link in the READMEs answers
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --max-retries 3 --accept 200,206,429 README.md web/deploy/README.md
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: jetli/wasm-pack-action@v0.4.0
+      - name: Build and stage the site
+        run: bash scripts/deploy-web.sh --stage _site
+      - name: Stamp the build (the showcase compares it with its pictures)
+        run: bash scripts/stamp-site.sh _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [test, readme, site]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - name: The live site answers (page, demo, engine, sounds)
+        env:
+          BASE: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          for path in "" try/ pkg/tabridge_bg.wasm shared/vendor/design/sound/gm.sf3 version.json; do
+            ok=""
+            for attempt in 1 2 3 4 5 6; do
+              if curl -fsS -o /dev/null "${BASE}${path}"; then ok=1; break; fi
+              sleep 10
+            done
+            [ -n "$ok" ] || { echo "not live: ${BASE}${path}"; exit 1; }
+            echo "live: ${BASE}${path}"
+          done

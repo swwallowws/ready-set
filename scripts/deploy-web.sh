@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Build the website and stage it for swwallowws/ready-set-web (GitHub Pages,
-# served at https://swwallowws.github.io/ready-set-web/).
+# Build the website and stage it. CI (.github/workflows/ci.yml) stages it on
+# every push to main and publishes it to this repo's GitHub Pages, served at
+# https://swwallowws.github.io/ready-set/ (the old ready-set-web address redirects).
 #   scripts/deploy-web.sh --stage DIR       build and stage into DIR (no git)
-#   scripts/deploy-web.sh --push CHECKOUT   stage into a clone of ready-set-web, commit, push
-# Pushing publishes the site: only with Bengisu's explicit go.
+#   scripts/deploy-web.sh --push CHECKOUT   stage into a checkout, commit, push (old manual route)
 #
 # The staged site is static: no serve.py, so its site.json points app.js at
 # the hosted proxy (ready-set-proxy on Deno Deploy) for live
