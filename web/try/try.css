@@ -5,17 +5,7 @@
 * { box-sizing: border-box; }
 a { color: var(--ink); }
 
-/* controls (as on the main page) */
-button, input[type=text] {
-  font: inherit; color: var(--ink); background: var(--ground-2); border: var(--hairline);
-  border-radius: var(--radius); padding: var(--space) calc(var(--space) * 1.5);
-}
-button { cursor: pointer; }
-button:hover { background: var(--band); }
-button:disabled { color: var(--ink-mut); cursor: default; background: var(--ground-2); }
-button.primary { background: var(--ink); color: var(--ground); border-color: var(--ink); font-weight: 600; }
-button.primary:hover { background: var(--ink); opacity: .85; }
-input[type=text]:focus-visible, button:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+/* controls are the design's (controls.css), as on the main page */
 
 /* icon buttons (design iconbutton.css) keep their own square box; hidden
    ones stay hidden even though the class sets a display. */
@@ -26,7 +16,6 @@ input[type=text]:focus-visible, button:focus-visible { outline: 2px solid var(--
 .row > input { flex: 1; min-width: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--space); margin-top: calc(var(--space) * 1.5); }
 .chips:empty { display: none; }
-.chips button, .empty .chips button { font: 500 12px/1.4 var(--font-mono); padding: 4px var(--space); }
 
 .search-status { color: var(--ink-mut); font: 12px/1.5 var(--font-mono); margin-top: calc(var(--space) * 1.5); }
 .search-status:empty { display: none; }
@@ -35,7 +24,9 @@ input[type=text]:focus-visible, button:focus-visible { outline: 2px solid var(--
 .results { margin-top: calc(var(--space) * 1.5); max-height: 320px; overflow: auto; border-top: var(--hairline); }
 .results:empty { border-top: none; margin-top: 0; }
 .result { display: flex; align-items: baseline; gap: calc(var(--space) * 1.5); width: 100%; text-align: left;
-  background: transparent; border: none; border-bottom: var(--hairline); border-radius: 0; padding: var(--space) 0; }
+  background: transparent; border: none; border-bottom: var(--hairline); border-radius: 0; padding: var(--space) 0;
+  font: inherit; color: var(--ink); cursor: pointer; }
+.result:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
 .result:hover { background: var(--band); }
 .result.sel { box-shadow: inset 2px 0 0 var(--acc); padding-left: var(--space); }
 .result .rmain { flex: 1; min-width: 0; }
@@ -57,7 +48,7 @@ input[type=text]:focus-visible, button:focus-visible { outline: 2px solid var(--
 .picked-line:not([hidden]) { display: flex; align-items: center; flex-wrap: wrap; }
 .picked-line .t { font-weight: 700; font-size: 1.1rem; }
 .picked-line .m { color: var(--ink-mut); font: 12px/1.4 var(--font-mono); }
-.ctl-label { font: 500 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mut); }
+.ctl-label { font: 600 12px/1 var(--font-mono); letter-spacing: .04em; text-transform: var(--button-case); color: var(--ink-mut); }
 
 /* the picked piece */
 .panel { border: var(--hairline); background: var(--ground-2); padding: calc(var(--space) * 2); margin-top: calc(var(--space) * 2);

@@ -75,7 +75,7 @@ def main():
         # Demo roll plays and transposes.
         page.click("#play")
         page.wait_for_timeout(600)
-        check("stop" in page.locator("#play").inner_text().lower(), "demo plays")
+        check(page.get_attribute("#play", "aria-pressed") == "true", "demo plays")   # the icon toggle shows stop
         page.click("#play")
 
         # Your own file first: MusicXML, then check the user-upload opt-in is off.
@@ -88,14 +88,11 @@ def main():
         mid_path = SHOTS / "sample-from-musicxml.mid"
         dl.value.save_as(str(mid_path))
         check(mid_path.stat().st_size > 20, "MusicXML -> .mid download")
-        # ...and that .mid back in as a MIDI file.
+        # ...and that .mid back in: a MIDI file is told it opens in Ableton Live directly.
         page.set_input_files("#file", str(mid_path))
-        st = wait_status(page, ["Ready."])
-        check(st == "Ready." and "MIDI" in page.locator("#picked-info").inner_text(), f"MIDI file import ({st})")
-        page.select_option("#format", "als")
-        with page.expect_download(timeout=30000) as dl:
-            page.click("#download")
-        check(dl.value.suggested_filename.endswith(".als"), "MIDI file -> .als download")
+        st = wait_status(page, ["open in Ableton Live directly"])
+        check("open in Ableton Live directly" in st and page.is_disabled("#download"),
+              f"a MIDI file is pointed at Ableton Live, nothing to convert ({st})")
         # Guitar Pro 7 (write it first: cargo run --example write_sample_gp -- spike/shots/sample.gp).
         if GP_SAMPLE.exists():
             page.set_input_files("#file", str(GP_SAMPLE))
@@ -114,7 +111,8 @@ def main():
         check(not page.locator("#online").evaluate("d => d.open"), "online search collapsed by default")
         page.click("#online > summary")
         check(not page.locator("#uploads").is_checked(), "fan-made MIDI off by default")
-        page.check("#uploads")
+        page.click("label:has(#uploads)")          # the design's chip: a click on its label ticks it
+        check(page.locator("#uploads").is_checked(), "fan-made MIDI ticked from its chip")
         page.fill("#q", query)
         page.click("#search-form button[type=submit]")
         st = wait_status(page, ["result.", "results.", "No results."], timeout=30000, sel="#search-status")

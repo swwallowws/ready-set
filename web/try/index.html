@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="../shared/vendor/design/range.css" />
 <link rel="stylesheet" href="../shared/vendor/design/playhead.css" />
 <link rel="stylesheet" href="../shared/midiplay.css" />
+<link rel="stylesheet" href="../shared/vendor/design/controls.css" />
 <link rel="stylesheet" href="./try.css" />
 <script>
   // ?embed=1 hides the header; ?theme=paper|night forces a mode (as on the
@@ -34,7 +35,7 @@
 <body>
 <main id="demo">
   <form id="search-form" class="row" role="search">
-    <input type="text" id="q" placeholder="Song or artist" aria-label="Song or artist" autocomplete="off" />
+    <input type="text" id="q" class="ds-field" placeholder="Song or artist" aria-label="Song or artist" autocomplete="off" />
     <button type="button" id="clear-q" data-icon="close" data-label="Clear" hidden></button>
     <button type="submit" id="search-go" data-icon="search" data-label="Search"></button>
   </form>
@@ -63,8 +64,8 @@
     <div class="take" id="take" hidden>
       <p class="ready">Ready: an Ableton Live set to jam with, or MIDI for any music software.</p>
       <div class="take-buttons">
-        <button id="download-set" class="primary" type="button">Ableton Live set (.als)</button>
-        <button id="download" type="button">MIDI (.mid)</button>
+        <button id="download-set" class="ds-button primary" type="button">Ableton Live set (.als)</button>
+        <button id="download" class="ds-button" type="button">MIDI (.mid)</button>
       </div>
       <p class="credit" id="credit"></p>
     </div>

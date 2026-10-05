@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="./shared/vendor/design/playhead.css" />
 <link rel="stylesheet" href="./shared/midiplay.css" />
 <link rel="stylesheet" href="./shared/vendor/design/themeswitch.css" />
+<link rel="stylesheet" href="./shared/vendor/design/controls.css" />
 <script src="./shared/roll.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -28,35 +29,22 @@
   main { max-width: 880px; margin: 0 auto; padding: 0 16px 96px; }
   a { color: var(--ink); }
   .mut { color: var(--ink-mut); }
-  .eyebrow { font: 500 11px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mut); }
+  /* labels over sections and controls are the design's (.ds-label), as in the studios */
+  .eyebrow { font: 600 12px/1.3 var(--font-mono); letter-spacing: .04em; text-transform: var(--button-case); color: var(--ink-mut); }
   .head { font-stretch: var(--head-stretch); font-weight: var(--head-weight); letter-spacing: var(--head-tracking); line-height: .95; margin: 0; }
   section { margin-top: calc(var(--space) * 7); }
   section > .eyebrow { display: block; margin-bottom: calc(var(--space) * 2); }
 
-  /* controls (design reference) --------------------------------------- */
-  button, select, input[type=text] {
-    font: inherit; color: var(--ink); background: var(--ground-2); border: var(--hairline);
-    border-radius: var(--radius); padding: var(--space) calc(var(--space) * 1.5);
-  }
-  button { cursor: pointer; }
-  button:hover { background: var(--band); }
-  button:disabled { color: var(--ink-mut); cursor: default; background: var(--ground-2); }
-  button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
-  button[aria-pressed="true"]:hover { background: var(--ground-2); }
-  button.primary { background: var(--ink); color: var(--ground); border-color: var(--ink); font-weight: 600; }
-  button.primary:hover { background: var(--ink); opacity: .85; }
-  button.primary:disabled { background: var(--ground-2); color: var(--ink-mut); border-color: var(--line); opacity: 1; }
-  input[type=checkbox] { accent-color: var(--acc); }
-  input[type=text]:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible, .drop:focus-within {
-    outline: 2px solid var(--acc); outline-offset: 1px;
-  }
-  label.cap, .cap { display: block; font: 500 11px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mut); margin-bottom: var(--space); }
+  /* controls are the design's (controls.css): buttons, chips, fields, selects, the drop zone */
+  summary:focus-visible, .ds-drop:focus-within { outline: 2px solid var(--acc); outline-offset: 1px; }
+  label.cap, .cap { display: block; font: 600 12px/1.3 var(--font-mono); letter-spacing: .04em; text-transform: var(--button-case); color: var(--ink-mut); margin-bottom: var(--space); }
 
   /* bar ---------------------------------------------------------------- */
   .bar { border-bottom: var(--hairline); background: var(--ground-2); }
   .bar-inner { max-width: 880px; margin: 0 auto; padding: var(--space) 16px; display: flex; align-items: center; gap: var(--space); }
-  .wordmark { font: 700 16px/1 var(--font-mono); display: flex; align-items: center; gap: var(--space); margin-right: auto; }
-  .wordmark svg { width: 16px; height: 16px; }
+  /* the wordmark every product shares: the name, heavy, with the accent full stop */
+  .wordmark { margin-right: auto; font-size: 20px; font-weight: var(--head-weight); font-stretch: var(--head-stretch); letter-spacing: var(--head-tracking); }
+  .wordmark span { color: var(--acc); }
 
   /* hero --------------------------------------------------------------- */
   .hero { margin-top: calc(var(--space) * 6); }
@@ -73,19 +61,13 @@
   canvas#roll { width: 100%; height: 196px; display: block; }
   .ctl { display: flex; align-items: center; gap: calc(var(--space) * 1.5); flex-wrap: wrap;
     padding: var(--space) calc(var(--space) * 1.5); border-top: var(--hairline); }
-  .ctl-label { font: 500 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mut); }
+  .ctl-label { font: 600 12px/1 var(--font-mono); letter-spacing: .04em; text-transform: var(--button-case); color: var(--ink-mut); }
   .legend { font: 12px/1.4 var(--font-mono); color: var(--ink-mut); display: flex; gap: calc(var(--space) * 2); align-items: center; }
   .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--ink); vertical-align: middle; margin-right: 6px; }
   .legend i.vib { border-top-style: dotted; }
 
   /* the tool --------------------------------------------------------------- */
-  .drop { display: block; border: 1px dashed var(--ink-mut); background: var(--ground-2); padding: calc(var(--space) * 4) calc(var(--space) * 2);
-    text-align: center; cursor: pointer; }
-  .drop:hover, .drop.over { border-style: solid; border-color: var(--acc); }
-  .drop.over { background: var(--band); }
-  .drop .big { font-size: 1.25rem; font-weight: 700; font-stretch: var(--head-stretch); letter-spacing: var(--head-tracking); }
-  .drop .big .pick { color: var(--acc); }
-  .drop .mut { font: 12px/1.5 var(--font-mono); margin-top: var(--space); }
+  .ds-drop.over { background: var(--band); }
   .panel { border: var(--hairline); background: var(--ground-2); padding: calc(var(--space) * 2); margin-top: calc(var(--space) * 2); }
   .picked .t { font-weight: 700; font-size: 1.1rem; }
   .picked .m { color: var(--ink-mut); font: 12px/1.5 var(--font-mono); margin-top: 2px; }
@@ -112,10 +94,8 @@
   .online-body { padding: 0 calc(var(--space) * 2) calc(var(--space) * 2); }
   .row { display: flex; gap: var(--space); }
   .row > input { flex: 1; min-width: 0; }
-  .opt-row { display: flex; align-items: flex-start; gap: var(--space); margin-top: calc(var(--space) * 1.5); }
-  .check { display: flex; gap: var(--space); align-items: flex-start; font-size: 14px; }
-  .check input { margin-top: 4px; }
-  .check .mut { font-size: 13px; }
+  .opt-row { display: flex; align-items: center; gap: var(--space); margin-top: calc(var(--space) * 1.5); }
+  .fan-note { font-size: 13px; }
   /* "Sources": a small disclosure; the list shows on hover, focus, or tap */
   .srcs { position: relative; margin-left: auto; flex: 0 0 auto; }
   .srcs-btn { display: inline-flex; align-items: center; gap: 4px; border: none; background: transparent; padding: 2px 0;
@@ -130,11 +110,13 @@
   .search-status:empty { display: none; }
   .filters { display: flex; flex-wrap: wrap; margin-top: calc(var(--space) * 1.5); }
   .filters:empty { margin-top: 0; }
-  .filters button { font: 500 12px/1.4 var(--font-mono); padding: 4px var(--space); margin: 0 -1px -1px 0; }
+  .filters > button { margin-bottom: -1px; }
   .results { margin-top: calc(var(--space) * 1.5); max-height: 340px; overflow: auto; border-top: var(--hairline); }
   .results:empty { border-top: none; margin-top: 0; }
   .result { display: flex; align-items: baseline; gap: calc(var(--space) * 1.5); width: 100%; text-align: left;
-    background: transparent; border: none; border-bottom: var(--hairline); padding: var(--space) 0; }
+    background: transparent; border: none; border-bottom: var(--hairline); padding: var(--space) 0;
+    font: inherit; color: var(--ink); cursor: pointer; }
+  .result:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
   .result:hover { background: var(--band); }
   .result.sel { box-shadow: inset 2px 0 0 var(--acc); padding-left: var(--space); }
   .result .rmain { flex: 1; min-width: 0; }
@@ -152,9 +134,10 @@
   .way { display: flex; flex-direction: column; }
   .way .req { margin-top: auto; padding-top: calc(var(--space) * 1.5); font: 12px/1.5 var(--font-mono); color: var(--ink-mut); }
   .way .req b { color: var(--ink); font-weight: 500; }
-  .way a.btn { align-self: flex-start; margin-top: calc(var(--space) * 1.5); text-decoration: none; border: var(--hairline);
-    padding: var(--space) calc(var(--space) * 1.5); background: var(--ground); font-weight: 600; }
-  .way a.btn:hover { background: var(--band); }
+  .way .ds-button { align-self: flex-start; margin-top: calc(var(--space) * 1.5); }
+  .way .soon { margin-top: calc(var(--space) * 1.5); }
+  .way .soon a { color: var(--ink-mut); font: 400 13px var(--font-sans); text-transform: none; letter-spacing: 0; margin-left: var(--space); }
+  .way .soon a:hover { color: var(--ink); }
 
   .foot { margin-top: calc(var(--space) * 6); padding-top: calc(var(--space) * 2); border-top: var(--hairline);
     font: 12px/1.7 var(--font-mono); color: var(--ink-mut); }
@@ -171,11 +154,7 @@
 <body>
 <div class="bar">
   <div class="bar-inner">
-    <div class="wordmark">
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M1.5 12.5C4 12.5 5 4 8.5 4c2.6 0 3.4 5 6 5" stroke="var(--acc)" stroke-width="2"/>
-      </svg>Ready Set
-    </div>
+    <div class="wordmark">Ready Set<span>.</span></div>
     <div class="modes"></div>
   </div>
 </div>
@@ -193,7 +172,7 @@
       </div>
       <canvas id="roll" aria-label="Piano roll of a one-bar drop-D bassline with a legato run, a vibrato hold and a pitch dive"></canvas>
       <div class="ctl">
-        <button id="play" type="button">Play</button>
+        <button id="play" type="button" data-icon="play" data-toggle data-pressed-icon="stop" data-pressed-label="Stop" aria-label="Play"></button>
         <span id="tr-label" class="ctl-label">Transpose</span>
         <span id="tr"></span>
         <span class="legend" aria-hidden="true"><span><i></i>bend</span><span><i class="vib"></i>vibrato</span></span>
@@ -203,9 +182,9 @@
 
   <section class="tool" id="tool">
     <span class="eyebrow">Convert a file</span>
-    <label class="drop" id="drop" for="file">
-      <div class="big">Drop a Guitar Pro or MusicXML file or <span class="pick">choose one</span></div>
-      <div class="mut">Stays in your browser</div>
+    <label class="ds-drop" id="drop" for="file">
+      <span class="ds-drop-main">Drop a Guitar Pro or MusicXML file, or click to choose</span>
+      <span class="ds-drop-sub">.gp, .gpx, .gp3 to .gp5, .musicxml · stays in your browser</span>
       <input type="file" id="file" accept=".gp,.gpx,.gp3,.gp4,.gp5,.musicxml,.xml" hidden />
     </label>
 
@@ -214,15 +193,13 @@
       <div class="online-body">
         <form id="search-form">
           <div class="row">
-            <input type="text" id="q" placeholder="Song or artist" aria-label="Song or artist" autocomplete="off" />
-            <button type="submit">Search</button>
+            <input type="text" id="q" class="ds-field" placeholder="Song or artist" aria-label="Song or artist" autocomplete="off" />
+            <button type="submit" class="ds-button">Search</button>
           </div>
         </form>
         <div class="opt-row">
-          <label class="check">
-            <input type="checkbox" id="uploads" />
-            <span>Include fan-made MIDI <span class="mut">(fine for practice, not for release)</span></span>
-          </label>
+          <label class="ds-chip"><input type="checkbox" id="uploads" /><span>Include fan-made MIDI</span></label>
+          <span class="mut fan-note">fine for practice, not for release</span>
           <span class="srcs" id="srcs">
             <button type="button" class="srcs-btn" id="srcs-btn" aria-describedby="srcs-tip" aria-expanded="false"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor"/><path d="M6 5.2v3.3M6 3.3v.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Sources</button>
             <!-- app.js rewrites these lines to match what this host can reach
@@ -234,7 +211,7 @@
           </span>
         </div>
         <div class="search-status" id="search-status" role="status"></div>
-        <div class="filters" id="filters"></div>
+        <div class="filters ds-choice small" id="filters"></div>
         <div class="results" id="results"></div>
       </div>
     </details>
@@ -245,7 +222,7 @@
       <div class="opts">
         <div>
           <label class="cap" for="format">Format</label>
-          <select id="format">
+          <select id="format" class="ds-select">
             <option value="als">Ableton Live (.als)</option>
             <option value="mid">MIDI (.mid)</option>
           </select>
@@ -254,8 +231,8 @@
           <span class="cap" id="semitones-label">Transpose</span>
           <span id="semitones"><!-- the design system's value box, -12..+12 (app.js) --></span>
         </div>
-        <div class="act"><button id="preview" type="button" disabled>Preview</button></div>
-        <div class="act"><button id="download" class="primary" type="button" disabled>Download</button></div>
+        <div class="act"><button id="preview" class="ds-button" type="button" disabled>Preview</button></div>
+        <div class="act"><button id="download" class="ds-button primary" type="button" disabled>Download</button></div>
       </div>
       <div id="status" role="status"></div>
       <div id="player-host" hidden>
@@ -282,12 +259,12 @@
       <div class="way">
         <h2>In your browser</h2>
         <div class="req"><b>.als + .mid</b> download</div>
-        <a class="btn" href="#tool">Convert a file</a>
+        <a class="ds-button" href="#tool">Convert a file</a>
       </div>
       <div class="way">
-        <h2>Inside Ableton</h2>
+        <h2>Inside Ableton Live</h2>
         <div class="req">Right-click a track · <b>Import a song…</b></div>
-        <a class="btn" href="https://github.com/swwallowws/ready-set">Extension: coming soon</a>
+        <p class="ds-label soon">Coming soon<a href="https://github.com/swwallowws/ready-set">follow it on GitHub</a></p>
       </div>
     </div>
   </section>
@@ -297,6 +274,7 @@
   import { valueBox } from "./shared/vendor/design/valuebox.js";
   import { NOTES as notes, BEATS, TOTAL, heroPlayer } from "./hero.js";
   import { themeSwitch } from "./shared/vendor/design/themeswitch.js";
+  import { iconButton } from "./shared/vendor/design/iconbutton.js";
   // ---- colour mode: System / Paper / Night, as the design system's symbols ----
   // ?theme= or a saved choice seeds it; the canvas redraws on every change.
   const root = document.documentElement;   // the palette reads the theme's tokens from here
@@ -372,15 +350,17 @@
   const hero = heroPlayer();
   window.readySetHero = hero;          // for scripts/hero_sound_check.py
   let playing = false, phStart = 0, phRAF = 0, endTimer = 0;
+  // Play is the design's icon toggle, as in the demos: play, and stop while it sounds
   const playBtn = document.getElementById('play');
+  const playIcon = iconButton(playBtn);
   function stopAudio(cut = true) {
     playing = false; playhead = null; cancelAnimationFrame(phRAF); clearTimeout(endTimer);
     hero.stop(cut);
-    playBtn.textContent = 'Play'; playBtn.setAttribute('aria-pressed', 'false'); draw();
+    playIcon.setPressed(false); draw();
   }
   async function playAudio() {
     if (playing) { stopAudio(); return; }
-    playing = true; playBtn.textContent = 'Stop'; playBtn.setAttribute('aria-pressed', 'true');
+    playing = true; playIcon.setPressed(true);
     let t;
     try { t = await hero.play(transpose); }          // the first press loads the sounds
     catch (e) { console.warn('bass demo unavailable:', e); stopAudio(); return; }

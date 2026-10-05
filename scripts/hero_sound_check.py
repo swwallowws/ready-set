@@ -222,7 +222,7 @@ def main():
         page.wait_for_function("() => window.readySetHero.ready && window.readySetHero.playing", timeout=30000)
         check(True, "the first press loads the synth and plays")
         print(f"  synth clock offset {page.evaluate('() => window.readySetHero.clockOffset') * 1000:+.2f} ms")
-        page.wait_for_function("() => document.getElementById('play').textContent === 'Play'", timeout=10000)
+        page.wait_for_function("() => document.getElementById('play').getAttribute('aria-pressed') === 'false'", timeout=10000)
         check(any("/vendor/design/sound/gm.sf3" in u for u in requests), "the shared gm.sf3 is what loads")
         check(any("/vendor/design/sound/spessasynth/spessasynth_lib.min.js" in u for u in requests),
               "the design system's spessasynth plays it")

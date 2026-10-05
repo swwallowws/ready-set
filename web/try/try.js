@@ -139,6 +139,7 @@ function chipButtons() {
   for (const h of HINTS) {
     const b = document.createElement("button");
     b.type = "button";
+    b.className = "ds-button small";
     b.textContent = h;
     b.addEventListener("click", () => { $("q").value = h; syncClear(); runSearch(h); });
     box.append(b);
