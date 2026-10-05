@@ -10,8 +10,8 @@ repo `swwallowws/ready-set-archive`. Do not push that history here.
 
 - [x] MIT `LICENSE` (Ready Set's own code). `Cargo.toml` already says MIT.
 - [x] Third-party licences ship with their files: `third_party/guitarpro/LICENSE`
-  (MIT), `shared/vendor/design/fonts/*-OFL.txt` (SIL OFL for Archivo and
-  JetBrains Mono).
+  (MIT), `shared/vendor/design/fonts/*-OFL.txt` (SIL OFL for Inter Tight and
+  Geist Mono).
 - [x] Ableton Extensions SDK tarballs untracked and gitignored
   (`extension/vendor/`); `extension/README.md` says to get them from Ableton,
   as ableton-session-notes does. Their licence forbids distributing the SDK
