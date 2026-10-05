@@ -18,6 +18,8 @@ Cargo.lock
 *.png
 # except the favicon fallbacks (copied in by the showcase's npm run favicons -- --copy)
 !/web/favicons/*.png
+# and the README's pictures (media/, moved here from the showcase)
+!/media/*.png
 
 # wasm-pack build output
 /web/pkg/

@@ -16,6 +16,12 @@ every track except drums.
 The whole engine is a Rust core compiled to WebAssembly, so the same parsing and
 export code runs in two places: a local web app and an Ableton extension.
 
+## In pictures
+
+<a href="media/loop-paper.mp4"><img src="media/site-paper.png" alt="Ready Set: a tab opened as a playable set" width="720"></a>
+
+Files to share: [loop, Paper](media/loop-paper.mp4) · [loop, Night](media/loop-night.mp4) · [still, Paper](media/site-paper.png) · [still, Night](media/site-night.png)
+
 ## Sources
 
 | Source | Kind | How | Status |
