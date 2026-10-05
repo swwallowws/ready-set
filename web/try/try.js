@@ -18,12 +18,12 @@ const ROLL_BEATS = 32;   // the roll shows the opening eight bars (in 4/4)
 // ---- demo shell: step rail beside the smallest live piece of the site ------------
 const { rail } = demoShell($("demo"), {
   product: "Ready Set",
-  title: "From a name to a set you can jam with.",
+  title: "from a name to a set you can jam with.",
   intro: "Pick a public-domain piece, then bring it into Ableton Live or any music software.",
   steps: [
-    { id: "search", label: "Type a name", hint: "Try one below" },
-    { id: "pick", label: "Pick one", hint: "Starts right away" },
-    { id: "take", label: "Take the set", hint: "Or the MIDI, for any music software" },
+    { id: "search", label: "type a name", hint: "Try one below" },
+    { id: "pick", label: "pick one", hint: "Starts right away" },
+    { id: "take", label: "take the set", hint: "Or the MIDI, for any music software" },
   ],
   // The rail's title stays a plain "Try it out!"; the way to the full version (the
   // website) comes at the end of the tour, as in every demo.
