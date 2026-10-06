@@ -18,6 +18,12 @@
 <link rel="stylesheet" href="./shared/midiplay.css" />
 <link rel="stylesheet" href="./shared/vendor/design/themeswitch.css" />
 <link rel="stylesheet" href="./shared/vendor/design/controls.css" />
+<script>
+  // before paint: ?theme= wins, then the mode saved in any of the products (they share it)
+  try { let t = new URLSearchParams(location.search).get("theme");
+        if (t !== "paper" && t !== "night") t = localStorage.getItem("swwallowws:mode");
+        if (t === "paper" || t === "night") document.documentElement.dataset.theme = t; } catch (_) {}
+</script>
 <script src="./shared/roll.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -266,8 +272,8 @@
   // ---- colour mode: System / Paper / Night, as the design system's symbols ----
   // ?theme= or a saved choice seeds it; the canvas redraws on every change.
   const root = document.documentElement;   // the palette reads the theme's tokens from here
+  // saved under the key every product shares (THEME_KEY), so a choice here holds in all of them
   themeSwitch(document.querySelector('.modes'), {
-    storageKey: 'tabridge-mode',
     onChange: () => window.dispatchEvent(new Event('tabridge-theme')),
   });
 

@@ -26,7 +26,7 @@
     const q = new URLSearchParams(location.search), root = document.documentElement;
     if (q.get('embed') === '1') root.setAttribute('data-embed', '');
     let m = q.get('theme');
-    if (m !== 'paper' && m !== 'night') { try { m = localStorage.getItem('tabridge-mode'); } catch (e) { m = null; } }
+    if (m !== 'paper' && m !== 'night') { try { m = localStorage.getItem('swwallowws:mode'); } catch (e) { m = null; } }   // the mode every product shares
     if (m === 'paper' || m === 'night') root.setAttribute('data-theme', m);
   })();
 </script>
