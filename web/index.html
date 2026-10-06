@@ -43,8 +43,9 @@
   .bar { border-bottom: var(--hairline); background: var(--ground-2); }
   .bar-inner { max-width: 880px; margin: 0 auto; padding: var(--space) 16px; display: flex; align-items: center; gap: var(--space); }
   /* the wordmark every product shares: the name, heavy, with the accent full stop */
-  .wordmark { margin-right: auto; font-size: 20px; font-weight: var(--head-weight); font-stretch: var(--head-stretch); letter-spacing: var(--head-tracking); }
+  .wordmark { font-size: 22px; font-weight: var(--head-weight); font-stretch: var(--head-stretch); letter-spacing: var(--head-tracking); }
   .wordmark span { color: var(--acc); }
+  .tagline { margin-right: auto; color: var(--ink-mut); white-space: nowrap; }   /* as in every studio: "simply …" */
 
   /* hero --------------------------------------------------------------- */
   .hero { margin-top: calc(var(--space) * 6); }
@@ -94,7 +95,9 @@
   .online-body { padding: 0 calc(var(--space) * 2) calc(var(--space) * 2); }
   .row { display: flex; gap: var(--space); }
   .row > input { flex: 1; min-width: 0; }
-  .opt-row { display: flex; align-items: center; gap: var(--space); margin-top: calc(var(--space) * 1.5); }
+  .row > .iconbutton { align-self: center; }
+  .opt-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space); margin-top: calc(var(--space) * 1.5); }
+  .opt-row .ds-chip > span { white-space: nowrap; }
   .fan-note { font-size: 13px; }
   /* "Sources": a small disclosure; the list shows on hover, focus, or tap */
   .srcs { position: relative; margin-left: auto; flex: 0 0 auto; }
@@ -146,7 +149,6 @@
   @media (max-width: 600px) {
     .grid, .grid.four { grid-template-columns: 1fr; }
     .demo-bar .src { display: none; }
-    .row { flex-direction: column; }
   }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -155,6 +157,7 @@
 <div class="bar">
   <div class="bar-inner">
     <div class="wordmark">Ready Set<span>.</span></div>
+    <span class="tagline">simply jam.</span>
     <div class="modes"></div>
   </div>
 </div>
@@ -162,7 +165,7 @@
 <main>
   <section class="hero">
     <div class="eyebrow">Guitar Pro · MusicXML · Ableton Live</div>
-    <h1 class="head">Your tab or score, as an Ableton Live set.</h1>
+    <h1 class="head">your tab or score, as an Ableton Live set.</h1>
     <p class="lede"><b>Guitar Pro</b> or <b>MusicXML</b> in, a multi-track Ableton Live set out.</p>
 
     <div class="demo">
@@ -194,7 +197,7 @@
         <form id="search-form">
           <div class="row">
             <input type="text" id="q" class="ds-field" placeholder="Song or artist" aria-label="Song or artist" autocomplete="off" />
-            <button type="submit" class="ds-button">Search</button>
+            <button type="submit" id="search-go" data-icon="search" data-label="Search"></button>
           </div>
         </form>
         <div class="opt-row">
@@ -353,6 +356,7 @@
   // Play is the design's icon toggle, as in the demos: play, and stop while it sounds
   const playBtn = document.getElementById('play');
   const playIcon = iconButton(playBtn);
+  iconButton(document.getElementById('search-go'));   // the search, an icon as in the demo
   function stopAudio(cut = true) {
     playing = false; playhead = null; cancelAnimationFrame(phRAF); clearTimeout(endTimer);
     hero.stop(cut);
