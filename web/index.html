@@ -26,38 +26,28 @@
     font: 15px/1.55 var(--font-sans); font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 880px; margin: 0 auto; padding: 0 16px 96px; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 24px 96px; }   /* the studios' column */
   a { color: var(--ink); }
   .mut { color: var(--ink-mut); }
   /* labels over sections and controls are the design's (.ds-label), as in the studios */
   .eyebrow { font: 600 12px/1.3 var(--font-mono); letter-spacing: .04em; text-transform: var(--button-case); color: var(--ink-mut); }
-  .head { font-stretch: var(--head-stretch); font-weight: var(--head-weight); letter-spacing: var(--head-tracking); line-height: .95; margin: 0; }
   section { margin-top: calc(var(--space) * 7); }
+  section:first-child { margin-top: 0; }
   section > .eyebrow { display: block; margin-bottom: calc(var(--space) * 2); }
 
   /* controls are the design's (controls.css): buttons, chips, fields, selects, the drop zone */
   summary:focus-visible, .ds-drop:focus-within { outline: 2px solid var(--acc); outline-offset: 1px; }
   label.cap, .cap { display: block; font: 600 12px/1.3 var(--font-mono); letter-spacing: .04em; text-transform: var(--button-case); color: var(--ink-mut); margin-bottom: var(--space); }
 
-  /* bar ---------------------------------------------------------------- */
-  .bar { border-bottom: var(--hairline); background: var(--ground-2); }
-  .bar-inner { max-width: 880px; margin: 0 auto; padding: var(--space) 16px; display: flex; align-items: center; gap: var(--space); }
-  /* the wordmark every product shares: the name, heavy, with the accent full stop */
-  .wordmark { font-size: 22px; font-weight: var(--head-weight); font-stretch: var(--head-stretch); letter-spacing: var(--head-tracking); }
-  .wordmark span { color: var(--acc); }
-  .tagline { margin-right: auto; color: var(--ink-mut); white-space: nowrap; }   /* as in every studio: "simply …" */
+  /* the header is the design's (.ds-header), with a bar under it saying what it does, as in the studios */
+  .note-bar { padding: 6px 24px; border-bottom: var(--hairline); color: var(--ink-mut); font-size: 13px; }
+  @media (max-width: 600px) { .note-bar { padding: 6px 16px; } main { padding: 16px 16px 80px; } }
 
-  /* hero --------------------------------------------------------------- */
-  .hero { margin-top: calc(var(--space) * 6); }
-  .hero h1 { font-size: clamp(2.4rem, 8vw, 4.4rem); margin-top: calc(var(--space) * 2); text-wrap: balance; }
-  .lede { color: var(--ink-mut); font-size: 1.08rem; max-width: 56ch; margin: calc(var(--space) * 2.5) 0 0; }
-  .lede b { color: var(--ink); font-weight: 600; }
-
-  /* demo roll ------------------------------------------------------------ */
-  .demo { margin-top: calc(var(--space) * 4); border: var(--hairline); background: var(--ground-2); }
+  /* the example: a bassline to hear --------------------------------------- */
+  .demo { border: var(--hairline); background: var(--ground-2); }
   .demo-bar { display: flex; justify-content: space-between; gap: var(--space); flex-wrap: wrap;
     padding: var(--space) calc(var(--space) * 1.5); border-bottom: var(--hairline);
-    font: 500 11px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mut); }
+    font: 600 12px/1.4 var(--font-mono); letter-spacing: .04em; text-transform: var(--button-case); color: var(--ink-mut); }
   .demo-bar .src { color: var(--ink); text-transform: none; letter-spacing: 0; }
   canvas#roll { width: 100%; height: 196px; display: block; }
   .ctl { display: flex; align-items: center; gap: calc(var(--space) * 1.5); flex-wrap: wrap;
@@ -154,35 +144,13 @@
 </style>
 </head>
 <body>
-<div class="bar">
-  <div class="bar-inner">
-    <div class="wordmark">Ready Set<span>.</span></div>
-    <span class="tagline">simply jam.</span>
-    <div class="modes"></div>
-  </div>
-</div>
+<header class="ds-header">
+  <span class="ds-wordmark">Ready Set<span class="dot">.</span></span>
+  <div class="modes end"></div>
+</header>
+<div class="note-bar">Guitar Pro or MusicXML in, a multi-track Ableton Live set out. Your files stay in this browser.</div>
 
 <main>
-  <section class="hero">
-    <div class="eyebrow">Guitar Pro · MusicXML · Ableton Live</div>
-    <h1 class="head">your tab or score, as an Ableton Live set.</h1>
-    <p class="lede"><b>Guitar Pro</b> or <b>MusicXML</b> in, a multi-track Ableton Live set out.</p>
-
-    <div class="demo">
-      <div class="demo-bar">
-        <span>Bass · drop D · Ableton Live 12</span>
-        <span class="src">D|0-0-0-12-0h3p1-12~-0\</span>
-      </div>
-      <canvas id="roll" aria-label="Piano roll of a one-bar drop-D bassline with a legato run, a vibrato hold and a pitch dive"></canvas>
-      <div class="ctl">
-        <button id="play" type="button" data-icon="play" data-toggle data-pressed-icon="stop" data-pressed-label="Stop" aria-label="Play"></button>
-        <span id="tr-label" class="ctl-label">Transpose</span>
-        <span id="tr"></span>
-        <span class="legend" aria-hidden="true"><span><i></i>bend</span><span><i class="vib"></i>vibrato</span></span>
-      </div>
-    </div>
-  </section>
-
   <section class="tool" id="tool">
     <span class="eyebrow">Convert a file</span>
     <label class="ds-drop" id="drop" for="file">
@@ -243,6 +211,23 @@
         <div id="preview-bar"></div>
       </div>
       <div id="template-state"></div>
+    </div>
+  </section>
+
+  <section class="example" id="example">
+    <span class="eyebrow">Hear an example</span>
+    <div class="demo">
+      <div class="demo-bar">
+        <span>Bass · drop D · Ableton Live 12</span>
+        <span class="src">D|0-0-0-12-0h3p1-12~-0\</span>
+      </div>
+      <canvas id="roll" aria-label="Piano roll of a one-bar drop-D bassline with a legato run, a vibrato hold and a pitch dive"></canvas>
+      <div class="ctl">
+        <button id="play" type="button" data-icon="play" data-toggle data-pressed-icon="stop" data-pressed-label="Stop" aria-label="Play"></button>
+        <span id="tr-label" class="ctl-label">Transpose</span>
+        <span id="tr"></span>
+        <span class="legend" aria-hidden="true"><span><i></i>Bend</span><span><i class="vib"></i>Vibrato</span></span>
+      </div>
     </div>
   </section>
 
