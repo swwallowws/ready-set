@@ -1,6 +1,6 @@
 # Ready Set
 
-simply jam.
+Simply jam.
 
 Formerly tabridge; the code, crate and commands keep that name.
 
