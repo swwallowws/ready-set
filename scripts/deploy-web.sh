@@ -27,6 +27,13 @@ find "$target" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 
 # Pages: the main page, /try/ and its catalogue, favicons.
 cp "$root/web/index.html" "$root/web/app.js" "$root/web/hero.js" "$target/"
+# The extension's download takes the place of "Coming soon" once it has a release
+# (scripts/release-extension.sh redeploys right after publishing one).
+latest="$(curl -fsS ${GITHUB_TOKEN:+-H "Authorization: Bearer $GITHUB_TOKEN"} \
+  https://api.github.com/repos/swwallowws/ready-set/releases/latest 2>/dev/null \
+  | node -e 'let s="";process.stdin.on("data",(d)=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).tag_name||"")}catch{}})' \
+  || true)"
+node "$root/scripts/extension-link.mjs" "$target/index.html" "$latest"
 cp -R "$root/web/try" "$root/web/favicons" "$target/"
 # WASM: only the module and its glue (wasm-pack's pkg/.gitignore would hide
 # the folder from git, and its README is the code repo's).

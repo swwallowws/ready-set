@@ -3,7 +3,7 @@
 Formerly tabridge; the code and command ids keep that name.
 
 Build a song straight into the Live Set you have open: right-click a track/clip
-slot/scene → **Ready Set: Import a song…**, open a MusicXML or MIDI file (or
+slot/scene → **Ready Set: Import a song…**, open a Guitar Pro or MusicXML file (or
 search online: Mutopia always, BitMidi/FreeMIDI only when you tick "Include
 fan-made MIDI (fine for practice, not for release)"), set a transpose, and the tracks, notes, and a per-track
 **Pitch** device appear in your project.
