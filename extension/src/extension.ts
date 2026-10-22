@@ -70,14 +70,13 @@ function floatToWav(samples: Float32Array): Buffer {
 // No global menu exists, so attach the action to the objects you can right-click
 // almost anywhere.
 const SCOPES = ["AudioTrack", "MidiTrack", "ClipSlot", "Scene"] as const;
-// Fetches route through the local serve.py proxy (the SAME fetch path the
-// website uses) so both surfaces share one fetcher and cache point, and adding
-// sources later happens in one place. Override the base with TABRIDGE_PROXY. If
-// the proxy is down, the host falls back to a direct fetch (see fetchText).
+// On a dev run, fetches go through the local serve.py proxy first (the SAME
+// fetch path the website uses); set TABRIDGE_PROXY to point elsewhere. An
+// installed extension fetches directly (see useProxy and fetchText).
 const PROXY_BASE = process.env.TABRIDGE_PROXY || "http://localhost:8000";
 // Some archives reject requests without a browser-like UA. serve.py adds it
-// itself; HDRS is only for the direct-fetch fallback (the host runs in Node, so
-// there is no CORS to fight on that path).
+// itself; HDRS is for direct fetches (the host runs in Node, so there is no
+// CORS to fight on that path).
 const HDRS: Record<string, string> = {
   "User-Agent":
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
@@ -137,12 +136,16 @@ export function activate(activation: ActivationContext) {
   dbg("local source folders", localDirs.join(", "), "loaded", localSources.length);
   const localByKey = new Map(localSources.map((m) => [localSourceKey(m), m]));
 
-  // ---- fetching (via the local serve.py proxy, direct-fetch fallback) ------
-  // One fetch path for the online archives. The proxy allow-lists their hosts
-  // and adds the browser headers; if it isn't reachable we fetch directly so a
-  // build never hard-fails just because serve.py is down.
+  // ---- fetching (direct; the serve.py proxy on a dev run) ------------------
+  // One fetch path for the online archives. On a dev run (no storage
+  // directory, or TABRIDGE_PROXY set) it goes through serve.py first, the same
+  // fetcher the website uses, and falls back to fetching directly. An
+  // installed extension never has serve.py, so it fetches directly from the
+  // start (the host runs in Node: no CORS to work around).
+  const useProxy = !!process.env.TABRIDGE_PROXY || !storageDirectory;
+  dbg(useProxy ? `fetching through ${PROXY_BASE} first (dev run)` : "fetching directly");
   async function fetchText(url: string): Promise<string> {
-    try {
+    if (useProxy) try {
       const r = await fetch(`${PROXY_BASE}/proxy?url=${encodeURIComponent(url)}`);
       if (r.ok) return await r.text();
       dbg("proxy non-ok", r.status, url);
@@ -174,10 +177,10 @@ export function activate(activation: ActivationContext) {
   // FreeMIDI gates its downloads: a bare fetch of getter-<id> 500s. Visit
   // download3-<id> first for a session cookie, then fetch getter-<id> with it
   // and that page as referer (what serve.py does with curl). The proxy is
-  // tried first on a dev machine; without it (every real install) the host
-  // does the handshake itself, since Node has no CORS to get in the way.
+  // tried first on a dev run; an installed extension (or a dev run without
+  // serve.py) does the handshake itself, since Node has no CORS to get in the way.
   async function fetchFreemidiBytes(id: string): Promise<Uint8Array> {
-    try {
+    if (useProxy) try {
       const r = await fetch(`${PROXY_BASE}/freemidi?id=${encodeURIComponent(id)}`);
       if (r.ok) return new Uint8Array(await r.arrayBuffer());
       dbg("proxy non-ok (freemidi)", r.status, id);
@@ -193,9 +196,9 @@ export function activate(activation: ActivationContext) {
     if (Buffer.from(bytes.subarray(0, 4)).toString("latin1") !== "MThd") throw new Error("FreeMIDI didn't send a MIDI file");
     return bytes;
   }
-  // Binary fetch (for .mid files), proxy-first with a direct fallback.
+  // Binary fetch (for .mid files): direct, or proxy-first on a dev run.
   async function fetchBytes(url: string): Promise<Uint8Array> {
-    try {
+    if (useProxy) try {
       const r = await fetch(`${PROXY_BASE}/proxy?url=${encodeURIComponent(url)}`);
       if (r.ok) return new Uint8Array(await r.arrayBuffer());
       dbg("proxy non-ok (bytes)", r.status, url);
@@ -378,7 +381,10 @@ export function activate(activation: ActivationContext) {
     // chain keeps the transaction open until every mutation settles, so one
     // ⌘Z removes all the tracks, clips, scenes, and devices together.
     await context.withinTransaction(() => (async () => {
-    try { song2.tempo = song.tempo; dbg("tempo set to", song.tempo); }
+    // A MIDI file stores tempo as microseconds per beat, so it arrives as e.g.
+    // 140.00014000014; the set shows two decimals.
+    const tempo = Math.round(song.tempo * 100) / 100;
+    try { song2.tempo = tempo; dbg("tempo set to", tempo); }
     catch (e) { dbg("tempo", String(e)); }
 
     for (let s = 0; s < sections.length; s++) {
