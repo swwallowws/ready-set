@@ -18,9 +18,10 @@ export code runs in two places: a local web app and an Ableton extension.
 
 ## In pictures
 
-<a href="media/loop-paper.mp4"><img src="media/site-paper.png" alt="Ready Set: a tab opened as a playable set" width="720"></a>
-
-Files to share: [loop, Paper](media/loop-paper.mp4) · [loop, Night](media/loop-night.mp4) · [still, Paper](media/site-paper.png) · [still, Night](media/site-night.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="media/loop-night.gif">
+  <img src="media/loop-paper.gif" alt="Ready Set: a tab opened as a playable set" width="720">
+</picture>
 
 ## Sources
 
