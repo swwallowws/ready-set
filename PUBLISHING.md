@@ -35,10 +35,9 @@ repo `swwallowws/ready-set-archive`. Do not push that history here.
 
 ## Open
 
-- [ ] **Extension release.** Postponed until after the content review and new
-  visuals, so Releases is empty for now. The website's "Inside Ableton" button
-  links to this repo and says "Extension: coming soon"; point it at
-  `https://github.com/swwallowws/ready-set/releases` once a release exists.
+- [x] **Extension release.** v0.1.0 published 2026-10-22 with
+  `scripts/release-extension.sh`; the website's "Inside Ableton Live" section
+  links the download (`releases/latest`).
 - [x] BitMidi and FreeMIDI adapters stay in the code (decided 2026-10-06), off
   by default behind "Include fan-made MIDI (fine for practice, not for
   release)" in both UIs and the README. Ready Set only searches them and links
