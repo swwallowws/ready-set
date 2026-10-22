@@ -381,11 +381,8 @@ export function activate(activation: ActivationContext) {
     // chain keeps the transaction open until every mutation settles, so one
     // ⌘Z removes all the tracks, clips, scenes, and devices together.
     await context.withinTransaction(() => (async () => {
-    // A MIDI file stores tempo as microseconds per beat, so it arrives as e.g.
-    // 140.00014000014; the set shows two decimals.
-    const tempo = Math.round(song.tempo * 100) / 100;
-    try { song2.tempo = tempo; dbg("tempo set to", tempo); }
-    catch (e) { dbg("tempo", String(e)); }
+    // The set's tempo is left alone: notes sit on bars and beats, so the song
+    // plays in time at the set's tempo (the preview shows the song's own).
 
     for (let s = 0; s < sections.length; s++) {
       // Grow the scene list until row s exists (createScene(length) appends).

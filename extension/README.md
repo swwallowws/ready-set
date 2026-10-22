@@ -18,9 +18,11 @@ file input and drag and drop).
 
 ## What it does / doesn't
 
-- Creates one MIDI track per instrument, names it, writes the notes, sets the
-  tempo, and inserts a **Pitch** device on every melodic track (drums excluded)
-  set to your chosen transpose: the "one control per track" idea, Model A.
+- Creates one MIDI track per instrument, names it, writes the notes, and inserts
+  a **Pitch** device on every melodic track (drums excluded) set to your chosen
+  transpose: the "one control per track" idea, Model A.
+- Leaves your set's tempo alone. Notes sit on bars and beats, so the song plays
+  in time at your tempo; the preview shows the song's own.
 - The Live note API writes discrete notes only, so **bends / slides / vibrato
   flatten here**. For full-fidelity articulations, use the website's `.als`
   export instead (same engine, different output).
