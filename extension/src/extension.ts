@@ -262,6 +262,9 @@ export function activate(activation: ActivationContext) {
   // search rather than stalling the results view (FreeMIDI's multi-hop scrape is
   // the usual laggard). Its rows just won't appear until the next search.
   const SEARCH_TIMEOUT_MS = 6000, PREFETCH_TIMEOUT_MS = 4000;
+  // How much longer a live window waits for a source that missed the search
+  // (BitMidi has taken 32 s), in the background, before giving up on it.
+  const LATE_TIMEOUT_MS = 40000;
   // Only these sources get their previews prefetched during search (BitMidi and
   // any local source module); the archive downloads (FreeMIDI two-step,
   // Mutopia) are too slow to block on, so those rows fall back to an on-click
@@ -507,11 +510,35 @@ export function activate(activation: ActivationContext) {
     const notesFor = (rec: SearchRec) => (rec.source === "file" ? Promise.resolve(fileJson) : ensureNotesJson(rec));
 
     let live = false;   // the window is served by the local server
+    // Sources that didn't answer within SEARCH_TIMEOUT_MS keep going in a live
+    // window: `pending` names them (the window says "Still searching…"), and
+    // a background "more" step waits for them and adds their rows at the end.
+    // searchSeq tells a late answer which search it belongs to.
+    let searchSeq = 0, pending: string[] = [];
+    let late: { name: string; rows: Promise<SearchRec[]> }[] = [];
     const state = () => ({
       mode, results, query, uploads, semitones, error, selectedUid, previewFrom, localLabels, sourcesDir, live,
+      searchSeq, pending,
       intro: mode === "results" ? intro : null,
       preview: mode === "preview" ? preview : null,
     });
+    // Load the first bars of the top FAST-source rows so each of their play
+    // buttons sounds INLINE on one click, with no round trip. Slow archive rows
+    // are skipped and load on click. Each is time-boxed so one slow file can't
+    // stall the view.
+    async function prefetchIntros(rows: SearchRec[], upd?: (t: string, p?: number) => Promise<void>) {
+      const top = rows.filter((r) => prefetches(r.source)).slice(0, PREFETCH_INTROS);
+      let done = 0;
+      await Promise.allSettled(top.map(async (rec) => {
+        try {
+          const json = await withTimeout(ensureNotesJson(rec), PREFETCH_TIMEOUT_MS, "");
+          if (!json) throw new Error("prefetch timed out");
+          // (ensureNotesJson gave the row its track count and tempo.)
+          rec.intro = { ...buildPreview(json, recLabel(rec), INTRO_BEATS), uid: rec.uid };
+        } catch { /* row falls back to on-click load */ }
+        await upd?.("Loading previews…", 20 + Math.round((++done / Math.max(1, top.length)) * 75));
+      }));
+    }
     const page = () => interfaceHtml.replace("'__STATE__'", () => JSON.stringify(state()));
     // A live window shows its own "Searching…"; the reopening one gets the
     // host's progress dialog between windows.
@@ -520,7 +547,7 @@ export function activate(activation: ActivationContext) {
 
     // One step of the window, everything but Build and Cancel.
     async function act(payload: any): Promise<void> {
-      error = "";
+      if (payload.action !== "more") error = "";   // the background step leaves messages alone
 
       // The user's own file: parse it with the same WASM core as the website,
       // then go straight to the whole-song preview.
@@ -567,8 +594,10 @@ export function activate(activation: ActivationContext) {
               // this time. Interleave so each present source is visible near
               // the top.
               const none = Promise.resolve([] as SearchRec[]);
-              // Each source's outcome goes to the log (ExtensionHost.txt): a
-              // source that fails or times out just has no rows in the window.
+              searchSeq++; pending = []; late = [];
+              // Each source's outcome goes to the log (ExtensionHost.txt). A
+              // source that fails has no rows; one that's slow is left running
+              // in a live window (see `late`) and dropped in the reopening one.
               const timed = (name: string, p: Promise<SearchRec[]>) => {
                 const t0 = Date.now();
                 const logged = p.then(
@@ -576,7 +605,10 @@ export function activate(activation: ActivationContext) {
                   (e) => { dbg(`search ${name} failed after ${Date.now() - t0} ms: ${why(e)}`); return [] as SearchRec[]; },
                 );
                 return withTimeout(logged, SEARCH_TIMEOUT_MS, null as SearchRec[] | null).then((r) => {
-                  if (r === null) dbg(`search ${name}: no answer within ${SEARCH_TIMEOUT_MS} ms`);
+                  if (r === null) {
+                    dbg(`search ${name}: no answer within ${SEARCH_TIMEOUT_MS} ms${live ? ", still waiting" : ""}`);
+                    if (live) { pending.push(name); late.push({ name, rows: logged }); }
+                  }
                   return r ?? [];
                 });
               };
@@ -587,26 +619,31 @@ export function activate(activation: ActivationContext) {
                 uploads ? timed("FreeMIDI", searchFreemidi(query)) : none,
               ]);
               results = mergeInterleaved(lists);
-              // Prefetch the first bars of the top FAST-source results so each of
-              // their play buttons sounds INLINE on one click, with no round trip.
-              // Slow archive rows are skipped here and load on click. Each
-              // prefetch is time-boxed so one slow file can't stall the view.
-              const top = results.filter((r) => prefetches(r.source)).slice(0, PREFETCH_INTROS);
-              let done = 0;
-              await Promise.allSettled(top.map(async (rec) => {
-                try {
-                  const json = await withTimeout(ensureNotesJson(rec), PREFETCH_TIMEOUT_MS, "");
-                  if (!json) throw new Error("prefetch timed out");
-                  // (ensureNotesJson gave the row its track count and tempo.)
-                  rec.intro = { ...buildPreview(json, recLabel(rec), INTRO_BEATS), uid: rec.uid };
-                } catch { /* row falls back to on-click load */ }
-                await upd("Loading previews…", 20 + Math.round((++done / Math.max(1, top.length)) * 75));
-              }));
+              await prefetchIntros(results, upd);
             },
           );
           mode = "results"; selectedUid = null; intro = null;
         }
         catch (e) { error = "Search failed. " + why(e); dbg(error); mode = "start"; }
+        return;
+      }
+
+      // In the background (a live window only): wait for the sources that were
+      // still searching, then add their rows at the end of the list, so rows
+      // already on screen don't move. Ignored if a newer search started.
+      if (payload.action === "more") {
+        if (payload.seq !== searchSeq || !late.length) return;
+        const seq = searchSeq, waiting = late;
+        late = [];
+        const got = await Promise.all(waiting.map((l) => withTimeout(l.rows, LATE_TIMEOUT_MS, null as SearchRec[] | null)));
+        if (seq !== searchSeq) return;   // a newer search took over meanwhile
+        const have = new Set(results.map((r) => r.uid));
+        const added = mergeInterleaved(got.map((g) => g ?? []), 1000).filter((r: SearchRec) => !have.has(r.uid));
+        got.forEach((g, i) => { if (g === null) dbg(`search ${waiting[i].name}: gave up after ${LATE_TIMEOUT_MS} ms more`); });
+        await prefetchIntros(added);
+        results = [...results, ...added];
+        pending = [];
+        dbg(`search: ${added.length} late results added`);
         return;
       }
 

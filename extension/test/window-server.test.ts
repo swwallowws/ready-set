@@ -65,6 +65,17 @@ try {
   assert.equal(a.status, 200); assert.equal(b.status, 200);
   assert.deepEqual(order, ["start slow", "end slow", "start quick", "end quick"]);
 
+  // A background step runs beside the queue: it finishes while a slow queued
+  // step is still running, and neither waits for the other.
+  order.length = 0;
+  const slow = post({ action: "slow" });
+  await new Promise((r) => setTimeout(r, 10));
+  const bg = await post({ action: "bg", background: true });
+  assert.equal(bg.status, 200);
+  assert.deepEqual(order, ["start slow", "start bg", "end bg"], "the background step ran during the slow one");
+  await slow;
+  assert.deepEqual(order.slice(-1), ["end slow"]);
+
   // A failed action is a 500 with its message; the next one still runs.
   const bad = await post({ action: "fail" });
   assert.equal(bad.status, 500);

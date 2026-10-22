@@ -5,7 +5,8 @@
 //
 // Loopback only, and every request must carry the random token from the
 // window's URL, so other apps and web pages on the machine can't drive it.
-// Actions run one at a time, in the order they arrive.
+// Actions run one at a time, in the order they arrive; one marked
+// `background: true` runs beside them.
 //
 // This file has no SDK or WASM imports, so it runs under plain Node for tests.
 
@@ -55,8 +56,10 @@ export async function startWindowServer(
         let payload: any;
         try { payload = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
         catch { res.writeHead(400).end("not JSON"); return; }
-        const run = queue.then(() => act(payload));
-        queue = run.catch(() => {});
+        // A background step (a slow source finishing) runs beside the queue, so
+        // it never holds up what the user clicks, nor waits behind it.
+        const run = payload && payload.background ? act(payload) : queue.then(() => act(payload));
+        if (!(payload && payload.background)) queue = run.catch(() => {});
         const fail = (e: unknown) => {
           try {
             if (!res.headersSent) res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });

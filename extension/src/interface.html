@@ -101,6 +101,10 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
   background:color-mix(in srgb, var(--ground) 72%, transparent);
   color:var(--ink); font:500 12px var(--font-mono); text-transform:uppercase; letter-spacing:.06em; }
 .busy[hidden] { display:none; }
+/* Late rows from a slow source, offered while something plays. */
+.more-ready { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px;
+  padding:8px 10px; border:var(--hairline); font:12px var(--font-mono); color:var(--ink-mut); }
+.more-ready[hidden] { display:none; }
 </style>
 <script>/*__ROLL__*/</script>
 <script>/*__VALUEBOX__*/</script>
@@ -148,6 +152,44 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
     if (LIVE && obj.action !== 'build' && obj.action !== 'cancel') return ask(obj);
     closeWith(obj);
   }
+  // A slow source left out of a search (BitMidi has taken 32 s) keeps going on
+  // the host. Once per search, ask in the background for its rows; they're
+  // added at the end of the list. If something is playing when they arrive,
+  // don't cut it off: offer them with a Show button instead.
+  let moreFor = 0, moreReady = null;
+  function askMore() {
+    if (!LIVE || !(S.pending && S.pending.length) || moreFor === S.searchSeq) return;
+    moreFor = S.searchSeq;
+    const seq = S.searchSeq, names = S.pending.join(', ');
+    fetch('/act' + location.search, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'more', seq, background: true }),
+    }).then((r) => (r.ok ? r.json() : null)).then((next) => {
+      if (!next || next.searchSeq !== seq || S.searchSeq !== seq) return;
+      next.moreFrom = names;
+      if (S.mode === 'results' && !busy && !players.some((p) => p.isPlaying())) return applyMore(next);
+      moreReady = next; offerMore();
+    }).catch(() => {});
+  }
+  // Redraw with the late rows, keeping what's selected and the transpose.
+  function applyMore(next) {
+    moreReady = null;
+    const keepSel = sel, keepSemis = semis;
+    players.forEach((p) => p.stop(false));
+    S = Object.assign({}, next, { selectedUid: keepSel, semitones: keepSemis, intro: null, error: S.error });
+    sel = keepSel; semis = keepSemis;
+    learnLabels(); render();
+  }
+  function offerMore() {
+    const el = document.getElementById('more-ready');
+    const n = moreReady ? moreReady.results.length - (S.results || []).length : 0;
+    if (!el || !moreReady || moreReady.searchSeq !== S.searchSeq || S.mode !== 'results' || n <= 0) return;
+    el.innerHTML = '<span>' + esc(moreReady.moreFrom) + ' found ' + n + ' more</span><button type="button" id="more-show">Show</button>';
+    el.hidden = false;
+    document.getElementById('more-show').onclick = () => applyMore(moreReady);
+    const line = view.querySelector('.pending'); if (line) line.remove();
+  }
+
   // A step in place: post it to the local server, then redraw from the state it
   // answers with. The cover only shows if the step takes a moment, so quick
   // ones (back, home) don't flash.
@@ -174,6 +216,7 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
     S = next; sel = S.selectedUid ?? null; semis = S.semitones || 0;
     learnLabels();
     render();
+    offerMore();   // late rows that came in while this step ran
   }
   const uploadsOn = () => { const c = document.getElementById('uploads'); return c ? c.checked : !!S.uploads; };
   const doSearch = (v) => { const q = (v || "").trim(); if (q) send({ action: "search", query: q, uploads: uploadsOn() }); };
@@ -395,7 +438,7 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
     }
     window.addEventListener('resize', repaint);
     draw();
-    return { play, stop, retune, repaint };
+    return { play, stop, retune, repaint, isPlaying: () => playing };
   }
   // Re-resolve colours when the system scheme flips (Live follows it).
   R.onSchemeChange(() => { pal = R.palette(document.documentElement); players.forEach((p) => p.repaint()); });
@@ -522,6 +565,8 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
         uploadsBox() +
         (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') + chips +
         '<div class="results">' + (list || '<div class="hint">No results.</div>') + '</div>' +
+        (LIVE && S.pending && S.pending.length ? '<div class="hint pending">Still searching ' + esc(S.pending.join(', ')) + '…</div>' : '') +
+        '<div class="more-ready" id="more-ready" hidden></div>' +
         '<div class="hint">' + CLEAN + '</div>';
       foot.innerHTML = transposeFoot() +
         '<button id="preview"' + (sel == null ? ' disabled' : '') + '>Preview</button>' +
@@ -562,6 +607,8 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
       }
 
       view.querySelectorAll('.filters button').forEach((c) => (c.onclick = () => applyFilter(c.dataset.filter)));
+      // A redraw in place keeps the chosen source (or falls back to all).
+      applyFilter(srcs.length > 1 && srcs.includes(filter) ? filter : 'all');
       view.querySelectorAll('.res-main').forEach((b) => (b.onclick = () => setSel(b.dataset.pick)));
       view.querySelectorAll('.res-play[data-inline]').forEach((b) =>
         (b.onclick = () => playInline(byId[b.dataset.inline], b)));
@@ -591,6 +638,7 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
 
       const pv = document.getElementById('preview'); if (pv) pv.onclick = () => sel != null && send({ action: "preview", uid: sel, semitones: semis });
       const bd = document.getElementById('build'); if (bd) bd.onclick = () => sel != null && send({ action: "build", uid: sel, semitones: semis });
+      askMore();
     } else if (S.mode === "preview") {
       const P = S.preview || { p: [], tempo: 120, beats: 32 };
       const sub = Math.round(P.tempo * 10) / 10 + ' BPM · whole song' + (P.truncated ? ' · clipped' : '') + ' · drag to scrub';
