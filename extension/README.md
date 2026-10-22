@@ -25,10 +25,14 @@ file input and drag and drop).
   (empty tracks, or tracks with just devices, still count as fresh). A set
   with material keeps its tempo; notes sit on bars and beats, so the song plays
   in time at it.
-- The preview voices each part like the instrument its track will get: a
-  plucked string for Tension (guitars, strings), a round bass for Operator
-  (bass), a soft pad for Wavetable (the rest). Close, not the same: the preview
-  plays in the window, not through Live's instruments.
+- Each track gets a stock instrument picked by its name: **Tension** for
+  guitars and strings, **Operator** for bass, **Electric** for piano parts
+  (named piano or keys, or for a score's hands and staves: up, down, RH, LH,
+  as many Mutopia files are), **Wavetable** for the rest and as the fallback
+  (Tension, Operator and Electric come with Live Suite). The preview voices
+  each part alike: a plucked string, a round bass, an electric piano, a soft
+  pad. Close, not the same: the preview plays in the window, not through
+  Live's instruments.
 - The Live note API writes discrete notes only, so **bends / slides / vibrato
   flatten here**. For full-fidelity articulations, use the website's `.als`
   export instead (same engine, different output).

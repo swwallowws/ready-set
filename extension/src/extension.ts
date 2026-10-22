@@ -19,6 +19,7 @@ import {
 } from "./localSources.js";
 import { startWindowServer } from "./windowServer.js";
 import { isFreshSet } from "./freshSet.js";
+import { instrumentFor, voiceFamily } from "./instruments.js";
 
 // ---- drum-kit synthesis (host side) -------------------------------------
 // The preview synths drums with Web Audio; here we render the SAME voices to
@@ -255,7 +256,7 @@ export function activate(activation: ActivationContext) {
   // encoded vs ~344 KB as objects. k=1 marks a drum note (the modal synths those
   // as percussion); v is velocity 0..1, which sets the note's accent tint; f is
   // the family of the instrument its track gets in the set (0 Wavetable,
-  // 1 Tension, 2 Operator), so the preview voices it alike. windowBeats limits to the first N beats (intro quick-play);
+  // 1 Tension, 2 Operator, 3 Electric; instruments.ts), so the preview voices it alike. windowBeats limits to the first N beats (intro quick-play);
   // null renders the whole song. Notes are original pitch; transpose is live.
   const INTRO_BEATS = 32, PREVIEW_MAX_NOTES = 12000, PREFETCH_INTROS = 8;
   // A source that doesn't answer within this budget is dropped from the current
@@ -276,8 +277,7 @@ export function activate(activation: ActivationContext) {
     let maxEnd = 0;
     for (const t of song.tracks) {
       const k = t.isDrums ? 1 : 0;
-      const first = t.isDrums ? "" : instrumentFor(t.name, false)[0];
-      const f = first === "Tension" ? 1 : first === "Operator" ? 2 : 0;
+      const f = voiceFamily(t.name, t.isDrums);
       for (const n of t.notes) {
         if (windowBeats != null && n.start >= windowBeats) continue;
         const dur = windowBeats != null ? Math.min(n.dur, windowBeats - n.start) : n.dur;
@@ -294,19 +294,6 @@ export function activate(activation: ActivationContext) {
       p: rows.map((r) => r[0]), s: rows.map((r) => r[1]), d: rows.map((r) => r[2]), k: rows.map((r) => r[3]),
       v: rows.map((r) => r[4]), f: rows.map((r) => r[5]),
     };
-  }
-
-  // Stock instrument candidates per family, tried in order (first that loads
-  // wins). insertDevice only takes a built-in device NAME with its DEFAULT
-  // preset, since the SDK can't load the website template's tuned MPE presets, so
-  // this just makes each track audible out of the box.
-  function instrumentFor(name: string, isDrums: boolean): string[] {
-    if (isDrums) return ["Drum Rack"];
-    const n = name.toLowerCase();
-    if (/bass/.test(n)) return ["Operator", "Wavetable"];
-    if (/guitar|gtr/.test(n)) return ["Tension", "Wavetable"];
-    if (/string|violin|viola|cello|orchestr|ensemble/.test(n)) return ["Tension", "Wavetable"];
-    return ["Wavetable"];
   }
 
   // Render each drum voice to a WAV once per session and cache the file paths.
