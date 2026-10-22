@@ -9,7 +9,7 @@ fan-made MIDI (fine for practice, not for release)"), set a transpose, and the t
 **Pitch** device appear in your project.
 
 Built on the [Ableton Extensions SDK](https://ableton.github.io/extensions-sdk/)
-(public beta, **Live 12 Suite 12.4.5+**). The parsing core is the tabridge Rust
+(public beta, **Ableton Live 12.4.15 beta or later**). The parsing core is the tabridge Rust
 crate compiled to a Node-target WASM module (`pkg/`), so the extension host
 parses opened files and does the online fetches (no CORS) with the exact same
 parser as the website. The modal reads an opened file and hands its bytes to

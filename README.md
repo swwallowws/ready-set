@@ -123,11 +123,17 @@ requests), Mutopia from the frozen `/try/` catalogue, and leaves FreeMIDI out.
 
 ## Ableton extension
 
-`extension/` is an Ableton Extensions SDK extension (Ableton Live 12.4.5, Node host). It
+`extension/` is an Ableton Extensions SDK extension (Ableton Live 12.4.15 beta or later, Node host). It
 adds a right-click action (**Import a song…**) that opens a file (or searches
 online), previews it, and builds it straight into the Set you have open: one MIDI track per part, a Session
 scene per section, an arrangement clip, a Pitch device for transpose, and audible
 stock instruments (a synthesized kit for drums). The whole build is one undo step.
+
+To install it:
+
+1. Download the latest `Ready-Set-<version>.ablx` from the [Releases](https://github.com/swwallowws/ready-set/releases/latest) page.
+2. In Ableton Live: **Settings → Extensions**, then drag the `.ablx` file onto the page.
+3. Right-click a track, clip slot, or scene → **Extensions → Ready Set: Import a song…**
 
 ```sh
 cd extension
