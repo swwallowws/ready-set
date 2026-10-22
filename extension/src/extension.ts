@@ -101,6 +101,13 @@ type TrackJson = { name: string; isDrums: boolean; notes: NoteJson[] };
 type SectionJson = { name: string; start: number; length: number };
 type SongJson = { tempo: number; tracks: TrackJson[]; sections?: SectionJson[] };
 
+// An error as the window shows it. fetch's "fetch failed" keeps the real
+// reason (refused, DNS, TLS…) in `cause`, so add it.
+function why(e: unknown): string {
+  const c: any = (e as any)?.cause;
+  return String(e) + (c ? ` (${[c.code, c.message].filter(Boolean).join(": ") || String(c)})` : "");
+}
+
 // Resolve to `fallback` if `p` doesn't settle within `ms`, so one slow or hung
 // source can't hold up the whole search. The abandoned promise keeps running
 // harmlessly (Node) and its result is ignored.
@@ -164,12 +171,27 @@ export function activate(activation: ActivationContext) {
     }
     return recs.slice(0, 25);
   };
-  // FreeMIDI downloads need the proxy's two-step cookie handshake; there is no
-  // direct URL to fall back to (a bare fetch of the file 500s).
+  // FreeMIDI gates its downloads: a bare fetch of getter-<id> 500s. Visit
+  // download3-<id> first for a session cookie, then fetch getter-<id> with it
+  // and that page as referer (what serve.py does with curl). The proxy is
+  // tried first on a dev machine; without it (every real install) the host
+  // does the handshake itself, since Node has no CORS to get in the way.
   async function fetchFreemidiBytes(id: string): Promise<Uint8Array> {
-    const r = await fetch(`${PROXY_BASE}/freemidi?id=${encodeURIComponent(id)}`);
-    if (!r.ok) throw new Error(`freemidi ${r.status}`);
-    return new Uint8Array(await r.arrayBuffer());
+    try {
+      const r = await fetch(`${PROXY_BASE}/freemidi?id=${encodeURIComponent(id)}`);
+      if (r.ok) return new Uint8Array(await r.arrayBuffer());
+      dbg("proxy non-ok (freemidi)", r.status, id);
+    } catch (e) { dbg("proxy unreachable (freemidi), direct", String(e)); }
+    if (!/^\d+$/.test(id)) throw new Error(`bad FreeMIDI id ${id}`);
+    const step1 = `https://freemidi.org/download3-${id}`;
+    const r1 = await fetch(step1, { headers: HDRS });
+    await r1.arrayBuffer();
+    const cookie = r1.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+    const r2 = await fetch(`https://freemidi.org/getter-${id}`, { headers: { ...HDRS, Cookie: cookie, Referer: step1 } });
+    if (!r2.ok) throw new Error(`FreeMIDI answered ${r2.status}`);
+    const bytes = new Uint8Array(await r2.arrayBuffer());
+    if (Buffer.from(bytes.subarray(0, 4)).toString("latin1") !== "MThd") throw new Error("FreeMIDI didn't send a MIDI file");
+    return bytes;
   }
   // Binary fetch (for .mid files), proxy-first with a direct fallback.
   async function fetchBytes(url: string): Promise<Uint8Array> {
@@ -551,7 +573,7 @@ export function activate(activation: ActivationContext) {
           );
           mode = "results"; selectedUid = null; intro = null;
         }
-        catch (e) { error = "Search failed. " + String(e); mode = "start"; }
+        catch (e) { error = "Search failed. " + why(e); dbg(error); mode = "start"; }
         return;
       }
 
@@ -571,7 +593,7 @@ export function activate(activation: ActivationContext) {
             async (upd) => { await upd("Fetching…", 55); json = await ensureNotesJson(rec); },
           );
           intro = { ...buildPreview(json, recLabel(rec), INTRO_BEATS), uid: payload.uid, autoplay: true };
-        } catch (e) { error = "Load failed. " + String(e); intro = null; }
+        } catch (e) { error = "Load failed. " + why(e); dbg(error, payload.uid); intro = null; }
         mode = "results";
         return;
       }
@@ -590,7 +612,7 @@ export function activate(activation: ActivationContext) {
           preview = buildPreview(json, recLabel(rec), null);
           previewFrom = "results";
           mode = "preview";
-        } catch (e) { error = "Preview failed. " + String(e); mode = "results"; }
+        } catch (e) { error = "Preview failed. " + why(e); dbg(error, payload.uid); mode = "results"; }
         return;
       }
     }
@@ -619,7 +641,7 @@ export function activate(activation: ActivationContext) {
               async (upd) => { await build(json, semitones, recLabel(rec), upd); },
             );
             break; // success
-          } catch (e) { error = "Build failed. " + String(e); mode = mode === "preview" ? "preview" : "results"; continue; }
+          } catch (e) { error = "Build failed. " + why(e); dbg(error, payload.uid); mode = mode === "preview" ? "preview" : "results"; continue; }
         }
         // Only the reopening fallback sends other actions this way.
         await act(payload);
