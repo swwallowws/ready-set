@@ -7,7 +7,7 @@
     "build:prod": "tsc --noEmit && tsx build.ts --production",
     "wasm": "cd .. && wasm-pack build --target nodejs --out-dir extension/pkg --out-name tabridge",
     "start": "tsx build.ts && extensions-cli run",
-    "test": "node test/local-sources.test.ts && node test/window-server.test.ts",
+    "test": "node test/local-sources.test.ts && node test/window-server.test.ts && node test/fresh-set.test.ts",
     "package": "tsc --noEmit && tsx build.ts --production && extensions-cli package"
   },
   "dependencies": {

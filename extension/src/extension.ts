@@ -18,6 +18,7 @@ import {
   type LocalSourceModule,
 } from "./localSources.js";
 import { startWindowServer } from "./windowServer.js";
+import { isFreshSet } from "./freshSet.js";
 
 // ---- drum-kit synthesis (host side) -------------------------------------
 // The preview synths drums with Web Audio; here we render the SAME voices to
@@ -245,7 +246,9 @@ export function activate(activation: ActivationContext) {
   // Note data for the in-modal audio/roll preview, in COLUMNAR form (p/s/d/k/v
   // arrays) so the modal's data: URL stays small: the whole song is ~116 KB
   // encoded vs ~344 KB as objects. k=1 marks a drum note (the modal synths those
-  // as percussion); v is velocity 0..1, which sets the note's accent tint. windowBeats limits to the first N beats (intro quick-play);
+  // as percussion); v is velocity 0..1, which sets the note's accent tint; f is
+  // the family of the instrument its track gets in the set (0 Wavetable,
+  // 1 Tension, 2 Operator), so the preview voices it alike. windowBeats limits to the first N beats (intro quick-play);
   // null renders the whole song. Notes are original pitch; transpose is live.
   const INTRO_BEATS = 32, PREVIEW_MAX_NOTES = 12000, PREFETCH_INTROS = 8;
   // A source that doesn't answer within this budget is dropped from the current
@@ -259,14 +262,16 @@ export function activate(activation: ActivationContext) {
   const prefetches = (source: string) => source === "midi" || localByKey.has(source);
   function buildPreview(notesJson: string, label: string, windowBeats: number | null) {
     const song: SongJson = JSON.parse(notesJson);
-    let rows: [number, number, number, number, number][] = [];
+    let rows: [number, number, number, number, number, number][] = [];
     let maxEnd = 0;
     for (const t of song.tracks) {
       const k = t.isDrums ? 1 : 0;
+      const first = t.isDrums ? "" : instrumentFor(t.name, false)[0];
+      const f = first === "Tension" ? 1 : first === "Operator" ? 2 : 0;
       for (const n of t.notes) {
         if (windowBeats != null && n.start >= windowBeats) continue;
         const dur = windowBeats != null ? Math.min(n.dur, windowBeats - n.start) : n.dur;
-        rows.push([n.pitch, +n.start.toFixed(3), +dur.toFixed(3), k, +((n.velocity ?? 100) / 127).toFixed(2)]);
+        rows.push([n.pitch, +n.start.toFixed(3), +dur.toFixed(3), k, +((n.velocity ?? 100) / 127).toFixed(2), f]);
         if (n.start + n.dur > maxEnd) maxEnd = n.start + n.dur;
       }
     }
@@ -277,7 +282,7 @@ export function activate(activation: ActivationContext) {
     return {
       label, tempo: Math.round(song.tempo), beats, truncated,
       p: rows.map((r) => r[0]), s: rows.map((r) => r[1]), d: rows.map((r) => r[2]), k: rows.map((r) => r[3]),
-      v: rows.map((r) => r[4]),
+      v: rows.map((r) => r[4]), f: rows.map((r) => r[5]),
     };
   }
 
@@ -381,8 +386,15 @@ export function activate(activation: ActivationContext) {
     // chain keeps the transaction open until every mutation settles, so one
     // ⌘Z removes all the tracks, clips, scenes, and devices together.
     await context.withinTransaction(() => (async () => {
-    // The set's tempo is left alone: notes sit on bars and beats, so the song
-    // plays in time at the set's tempo (the preview shows the song's own).
+    // A fresh set (no track holds a clip yet) takes the song's tempo; a set
+    // with material keeps its own, and the song plays in time at it (notes sit
+    // on bars and beats). Checked before this build adds anything. A MIDI file
+    // stores tempo as microseconds per beat (140.00014000014), so round it.
+    if (isFreshSet(song2.tracks)) {
+      const tempo = Math.round(song.tempo * 100) / 100;
+      try { song2.tempo = tempo; dbg("fresh set: tempo set to", tempo); }
+      catch (e) { dbg("tempo", String(e)); }
+    } else dbg("set has material: tempo kept at", song2.tempo);
 
     for (let s = 0; s < sections.length; s++) {
       // Grow the scene list until row s exists (createScene(length) appends).

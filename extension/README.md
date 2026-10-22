@@ -21,8 +21,14 @@ file input and drag and drop).
 - Creates one MIDI track per instrument, names it, writes the notes, and inserts
   a **Pitch** device on every melodic track (drums excluded) set to your chosen
   transpose: the "one control per track" idea, Model A.
-- Leaves your set's tempo alone. Notes sit on bars and beats, so the song plays
-  in time at your tempo; the preview shows the song's own.
+- Sets the song's tempo only in a fresh set, where no track has a clip yet
+  (empty tracks, or tracks with just devices, still count as fresh). A set
+  with material keeps its tempo; notes sit on bars and beats, so the song plays
+  in time at it.
+- The preview voices each part like the instrument its track will get: a
+  plucked string for Tension (guitars, strings), a round bass for Operator
+  (bass), a soft pad for Wavetable (the rest). Close, not the same: the preview
+  plays in the window, not through Live's instruments.
 - The Live note API writes discrete notes only, so **bends / slides / vibrato
   flatten here**. For full-fidelity articulations, use the website's `.als`
   export instead (same engine, different output).
