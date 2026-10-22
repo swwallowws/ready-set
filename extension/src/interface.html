@@ -316,8 +316,11 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
     const mel = notes.filter((n) => !n.k), drum = notes.filter((n) => n.k);
     let nodes = [], oscs = [], playing = false, phStart = 0, raf = 0, pos = 0, schedTimer = 0;
     let cache = null, cw = 0, ch = 0, pMin = 0, pMax = 0;
+    // The pitch span drawn, plus one empty row above and below, so the highest
+    // and lowest notes don't sit under the frame and look cut off.
     function range() { pMin = 127; pMax = 0; mel.forEach((n) => { const p = n.p + semis; if (p < pMin) pMin = p; if (p > pMax) pMax = p; });
-      if (pMax < pMin) { pMin = 48; pMax = 72; } }
+      if (pMax < pMin) { pMin = 48; pMax = 72; }
+      pMin -= 1; pMax += 1; }
     range();
     function paint(w, h) {
       const off = document.createElement('canvas'); off.width = w; off.height = h; const c = off.getContext('2d');
