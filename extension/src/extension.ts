@@ -595,7 +595,8 @@ export function activate(activation: ActivationContext) {
       }
     }
 
-    const server = await startWindowServer(page, async (payload) => { await act(payload); return state(); }, dbg);
+    const server = await startWindowServer(page, async (payload) => { await act(payload); return state(); }, dbg)
+      .catch((e) => { dbg("window server failed", String(e)); return null; });
     live = !!server;
     dbg(server ? `import window served at ${server.url.replace(/\?.*/, "")}` : "import window: reopening fallback");
     try {

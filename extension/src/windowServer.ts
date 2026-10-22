@@ -11,6 +11,8 @@
 
 import * as http from "node:http";
 import { randomBytes } from "node:crypto";
+// Ableton Live's extension host has no global URL (plain Node does), so import it.
+import { URL } from "node:url";
 
 export type WindowServer = { url: string; close(): void };
 type Log = (...a: unknown[]) => void;
@@ -26,11 +28,24 @@ export async function startWindowServer(
   const token = randomBytes(16).toString("hex");
   let queue: Promise<unknown> = Promise.resolve();
 
+  // A throw in a request handler is uncaught and ends the whole extension host,
+  // so any mistake here answers 500 instead.
   const handler: http.RequestListener = (req, res) => {
+    try { route(req, res); }
+    catch (e) {
+      log("window server: request failed", String(e));
+      try {
+        if (!res.headersSent) res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end(String(e));   // always finish, so the window never waits forever
+      } catch { res.destroy(); }
+    }
+  };
+  const route: http.RequestListener = (req, res) => {
     const u = new URL(req.url ?? "/", "http://localhost");
     if (u.searchParams.get("t") !== token) { res.writeHead(403).end(); return; }
     if (req.method === "GET" && u.pathname === "/") {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(page());
+      const body = page();   // before any header, so a throw can still answer 500
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }).end(body);
       return;
     }
     if (req.method === "POST" && u.pathname === "/act") {
@@ -42,11 +57,19 @@ export async function startWindowServer(
         catch { res.writeHead(400).end("not JSON"); return; }
         const run = queue.then(() => act(payload));
         queue = run.catch(() => {});
+        const fail = (e: unknown) => {
+          try {
+            if (!res.headersSent) res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+            res.end(String(e));
+          } catch { res.destroy(); }
+        };
         run.then(
-          (state) => res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" })
-            .end(JSON.stringify(state)),
-          (e) => res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" }).end(String(e)),
-        );
+          (state) => {
+            const body = JSON.stringify(state);   // before any header, as above
+            res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(body);
+          },
+          fail,
+        ).catch(fail); // a state that can't be sent is a 500 too, never an unhandled rejection
       });
       return;
     }
@@ -54,9 +77,11 @@ export async function startWindowServer(
   };
 
   const listen = (host: string, port: number) => new Promise<http.Server | null>((resolve) => {
-    const s = http.createServer(handler);
-    s.once("error", (e) => { log("window server:", host, String(e)); resolve(null); });
-    s.listen(port, host, () => resolve(s));
+    try {
+      const s = http.createServer(handler);
+      s.once("error", (e) => { log("window server:", host, String(e)); resolve(null); });
+      s.listen(port, host, () => resolve(s));
+    } catch (e) { log("window server:", host, String(e)); resolve(null); }
   });
 
   // "localhost" can resolve to either loopback address, so answer on both;
