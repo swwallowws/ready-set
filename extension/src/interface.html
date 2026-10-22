@@ -473,7 +473,8 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
       '<span class="tip" role="tooltip" id="srcs-tip">' +
         '<span><b>Mutopia</b> public-domain scores, always searched</span>' +
         (S.localLabels || []).map((l) => '<span><b>' + esc(l) + '</b> local source module, always searched</span>').join('') +
-        '<span><b>BitMidi, FreeMIDI</b> fan-made MIDI, searched when included</span>' +
+        '<span><b>BitMidi</b> fan-made MIDI, searched when included</span>' +
+        '<span><b>FreeMIDI</b> fan-made MIDI, searched when included. Free and ad-supported: support it at freemidi.org</span>' +
         (S.sourcesDir
           ? '<span class="own"><b>Your own</b> drop a source module (.js) here, then reopen Ableton Live' +
             '<span class="dir"><code id="srcs-dir">' + esc(S.sourcesDir) + '</code>' +
