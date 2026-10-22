@@ -95,6 +95,7 @@ type Source = string;
 type SearchRec = {
   uid: string; id: number; artist: string; title: string; tracks: number | null; source: Source;
   downloadUrl?: string; freemidiId?: string; label?: string; localId?: string | number; intro?: any;
+  tempo?: number;   // BPM, to one decimal, once the song's file has loaded
 };
 type NoteJson = { pitch: number; start: number; dur: number; velocity: number };
 type TrackJson = { name: string; isDrums: boolean; notes: NoteJson[] };
@@ -240,6 +241,12 @@ export function activate(activation: ActivationContext) {
     }
     if (notesCache.size > 40) notesCache.clear();
     notesCache.set(rec.uid, json);
+    // A loaded row learns its tempo and track count, for its line in the results.
+    try {
+      const song: SongJson = JSON.parse(json);
+      rec.tempo = Math.round(song.tempo * 10) / 10;
+      if (rec.tracks == null) rec.tracks = song.tracks.length;
+    } catch { /* the row keeps what it had */ }
     return json;
   }
 
@@ -280,7 +287,7 @@ export function activate(activation: ActivationContext) {
     if (truncated) rows = rows.slice(0, PREVIEW_MAX_NOTES);
     const beats = windowBeats != null ? windowBeats : Math.max(1, Math.ceil(maxEnd));
     return {
-      label, tempo: Math.round(song.tempo), beats, truncated,
+      label, tempo: song.tempo, beats, truncated,   // exact: the preview plays at it
       p: rows.map((r) => r[0]), s: rows.map((r) => r[1]), d: rows.map((r) => r[2]), k: rows.map((r) => r[3]),
       v: rows.map((r) => r[4]), f: rows.map((r) => r[5]),
     };
@@ -590,8 +597,7 @@ export function activate(activation: ActivationContext) {
                 try {
                   const json = await withTimeout(ensureNotesJson(rec), PREFETCH_TIMEOUT_MS, "");
                   if (!json) throw new Error("prefetch timed out");
-                  // Rows without a track count learn it once fetched.
-                  if (rec.tracks == null) { try { rec.tracks = JSON.parse(json).tracks.length; } catch { /* keep 0 */ } }
+                  // (ensureNotesJson gave the row its track count and tempo.)
                   rec.intro = { ...buildPreview(json, recLabel(rec), INTRO_BEATS), uid: rec.uid };
                 } catch { /* row falls back to on-click load */ }
                 await upd("Loading previews…", 20 + Math.round((++done / Math.max(1, top.length)) * 75));
