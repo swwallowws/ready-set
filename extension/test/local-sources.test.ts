@@ -11,25 +11,41 @@ import * as path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import {
-  localSourceDirs, loadLocalSources, localSourceKey, searchLocalSource, localNotesJson,
+  localSourceDirs, loadLocalSources, localSourceKey, searchLocalSource, localNotesJson, ensureSourceDir,
+  type Parsers,
 } from "../src/localSources.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const tabridge = require(path.join(here, "..", "pkg", "tabridge.js"));
 const midiFile = path.join(here, "..", "..", "web", "try", "catalog", "mutopia-177.mid");
+const xmlFile = path.join(here, "..", "..", "tests", "data", "sample.musicxml");
+// The host's parsers: the same WASM calls it makes for an opened file.
+const parse: Parsers = {
+  midi: (b) => tabridge.midi_build_notes_json(b, 0),
+  gp: (b) => tabridge.guitarpro_build_notes_json(b, 0),
+  musicxml: (t) => tabridge.musicxml_build_notes_json(t, 0),
+};
+const noteCount = (json: string) => JSON.parse(json).tracks.reduce((n: number, t: any) => n + t.notes.length, 0);
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ready-set-local-"));
 try {
-  // No folder yet: nothing loads, nothing breaks.
+  // Only the storage directory's folder (Live 12.4.15 allows no other); the
+  // home folder is the fallback for dev runs with no storage directory.
+  assert.deepEqual(localSourceDirs(tmp, "/home/x"), [path.join(tmp, "sources")]);
+  assert.deepEqual(localSourceDirs(undefined, "/home/x"), [path.join("/home/x", ".ready-set", "sources")]);
+  assert.deepEqual(localSourceDirs(undefined, ""), []);
+
+  // No folder yet: nothing loads, nothing breaks; the host then makes it.
   const dirs = localSourceDirs(tmp, "");
-  assert.deepEqual(dirs, [path.join(tmp, "sources")]);
   assert.equal(loadLocalSources(dirs, { require }).length, 0);
+  const src = path.join(tmp, "sources");
+  ensureSourceDir(src);
+  assert.ok(fs.statSync(src).isDirectory(), "the sources folder is made");
+  ensureSourceDir(src); // already there: fine
 
   // A fake module that serves one MIDI file, a module with the wrong shape, and
   // one that throws on load. Only the first is picked up.
-  const src = path.join(tmp, "sources");
-  fs.mkdirSync(src);
   fs.writeFileSync(path.join(src, "a-fake.js"), `
     const fs = require("node:fs");
     module.exports = {
@@ -68,20 +84,34 @@ try {
   assert.equal((await searchLocalSource(mods[0], "nothing")).length, 0);
 
   // Load: MIDI bytes -> notes-JSON via the same WASM call the host uses.
-  const json = await localNotesJson(mods[0], recs[0].localId, (b) => tabridge.midi_build_notes_json(b, 0));
+  const json = await localNotesJson(mods[0], recs[0].localId, parse);
   const song = JSON.parse(json);
-  const notes = song.tracks.reduce((n: number, t: any) => n + t.notes.length, 0);
+  const notes = noteCount(json);
   assert.ok(song.tracks.length > 0 && notes > 0, "the loaded song has notes");
   assert.ok(song.tempo > 0);
 
+  const mod = (load: () => Promise<any>) => ({ id: "m", label: "M", search: async () => [], load });
+  const refuse = () => { throw new Error("wrong parser"); };
+
+  // MusicXML text goes through the same parser as an opened file.
+  const xml = await localNotesJson(mod(async () => ({ musicxml: fs.readFileSync(xmlFile, "utf8") })), "x", parse);
+  assert.ok(noteCount(xml) > 0, "MusicXML from a module has notes");
+
+  // Guitar Pro bytes reach the Guitar Pro parser (its reading is tested in tests/guitarpro.rs).
+  const gpBytes = new Uint8Array([1, 2, 3]);
+  let gpGot: Uint8Array | null = null;
+  const gp = await localNotesJson(mod(async () => ({ gp: gpBytes })), "x",
+    { midi: refuse, musicxml: refuse, gp: (b) => { gpGot = b; return json; } });
+  assert.equal(gp, json);
+  assert.deepEqual(gpGot, gpBytes);
+  // ...and the real parser refuses bytes that aren't Guitar Pro, as for an opened file.
+  await assert.rejects(localNotesJson(mod(async () => ({ gp: gpBytes })), "x", parse));
+
   // A module may also hand back notes-JSON directly.
-  const direct = await localNotesJson(
-    { id: "d", label: "D", search: async () => [], load: async () => ({ notesJson: json }) },
-    "x", () => { throw new Error("should not convert"); },
-  );
+  const direct = await localNotesJson(mod(async () => ({ notesJson: json })), "x",
+    { midi: refuse, gp: refuse, musicxml: refuse });
   assert.equal(direct, json);
-  await assert.rejects(localNotesJson(
-    { id: "e", label: "E", search: async () => [], load: async () => ({} as any) }, "x", () => ""));
+  await assert.rejects(localNotesJson(mod(async () => ({})), "x", parse), /must return/);
 
   console.log(`local sources ok: 1 module, ${recs.length} rows, ${song.tracks.length} tracks, ${notes} notes`);
 } finally {

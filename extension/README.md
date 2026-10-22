@@ -28,13 +28,12 @@ file input and drag and drop).
 ## Local source modules
 
 You can add your own search source without changing the extension. At startup
-the host loads every CommonJS module (`*.js` or `*.cjs`) it finds in:
-
-1. `<storage directory>/sources/`, where the storage directory is the one Live
-   gives the extension (the SDK's `environment.storageDirectory`; the host logs
-   the exact folder at startup), then
-2. `~/.ready-set/sources/` (useful for `npm start` dev runs, which have no
-   storage directory).
+the host loads every CommonJS module (`*.js` or `*.cjs`) in the `sources`
+folder of the extension's storage directory (the SDK's
+`environment.storageDirectory`). The extension makes the folder, and the import
+window shows it with a Copy button: open **Sources** next to the search box.
+Since Ableton Live 12.4.15 an extension can't read anywhere else. A dev run
+with no storage directory (`npm start`) uses `~/.ready-set/sources/` instead.
 
 A module exports:
 
@@ -46,13 +45,15 @@ module.exports = {
     return [{ id: "42", title: "Song", artist: "Artist", tracks: 3 }];  // artist, tracks optional
   },
   async load(id) {          // one of:
-    return { midi: bytes };            // Standard MIDI File bytes (Uint8Array or Buffer)
+    return { gp: bytes };              // a Guitar Pro file (.gp, .gpx, .gp3-5), Uint8Array or Buffer
+    // return { musicxml: text };      // MusicXML, as a string
+    // return { midi: bytes };         // Standard MIDI File bytes
     // return { notesJson: json };     // Ready Set notes-JSON, see below
   },
 };
 ```
 
-`notesJson` is the same shape the core's `midi_build_notes_json` returns:
+Guitar Pro and MusicXML go through the same parser as a file you open. `notesJson` is the same shape the core's `midi_build_notes_json` returns:
 `{ tempo, tracks: [{ name, isDrums, notes: [{ pitch, start, dur, velocity }] }],
 sections?: [{ name, start, length }] }`, with `start`, `dur` and `length` in
 beats. A module's results appear in search next to the built-in sources (always

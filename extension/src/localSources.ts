@@ -10,16 +10,18 @@
 //     async search(query) {            // -> [{ id, title, artist?, tracks? }]
 //       ...
 //     },
-//     async load(id) {                 // -> { midi: Uint8Array } or { notesJson: string }
+//     async load(id) {                 // -> one of { gp }, { musicxml }, { midi }, { notesJson }
 //       ...
 //     },
 //   };
 //
-// `load` returns either Standard MIDI File bytes, or Ready Set's notes-JSON
-// (the shape midi_build_notes_json returns: { tempo, tracks: [{ name, isDrums,
-// notes: [{ pitch, start, dur, velocity }] }], sections? }). Results show up in
-// search next to the built-in sources and go through the same preview and
-// Build path. No module, no change.
+// `load` returns a Guitar Pro file's bytes ({ gp }), MusicXML text
+// ({ musicxml }), Standard MIDI File bytes ({ midi }), or Ready Set's
+// notes-JSON ({ notesJson }: the shape midi_build_notes_json returns:
+// { tempo, tracks: [{ name, isDrums, notes: [{ pitch, start, dur, velocity }] }],
+// sections? }). Guitar Pro and MusicXML go through the same parser as an
+// opened file. Results show up in search next to the built-in sources and go
+// through the same preview and Build path. No module, no change.
 //
 // This file has no SDK or WASM imports, so it runs under plain Node for tests.
 
@@ -28,7 +30,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 export type LocalHit = { id: string | number; title: string; artist?: string; tracks?: number | null };
-export type LocalLoad = { midi: Uint8Array } | { notesJson: string };
+export type LocalLoad =
+  | { gp: Uint8Array } | { musicxml: string } | { midi: Uint8Array } | { notesJson: string };
+/** The WASM core's parsers, each to notes-JSON (passed in so tests run without it). */
+export type Parsers = {
+  midi: (bytes: Uint8Array) => string;
+  gp: (bytes: Uint8Array) => string;
+  musicxml: (text: string) => string;
+};
 export interface LocalSourceModule {
   id: string;
   label: string;
@@ -44,14 +53,21 @@ export type LocalRec = {
 type Log = (...a: unknown[]) => void;
 type Req = (id: string) => unknown;
 
-/** Folders searched for local source modules, in order: the extension's
- *  storage directory (from the SDK Environment), then ~/.ready-set/sources
- *  (used when Live gives no storage directory, e.g. a CLI dev run). */
+/** The folder searched for local source modules: "sources" in the extension's
+ *  storage directory (from the SDK Environment). Since Ableton Live 12.4.15
+ *  an extension can't read outside it, so ~/.ready-set/sources is only used
+ *  when Live gives no storage directory (a CLI dev run). */
 export function localSourceDirs(storageDirectory?: string | null, home = os.homedir()): string[] {
-  const dirs: string[] = [];
-  if (storageDirectory) dirs.push(path.join(storageDirectory, "sources"));
-  if (home) dirs.push(path.join(home, ".ready-set", "sources"));
-  return [...new Set(dirs)];
+  if (storageDirectory) return [path.join(storageDirectory, "sources")];
+  return home ? [path.join(home, ".ready-set", "sources")] : [];
+}
+
+/** Make the sources folder if it's missing, so there's a place to drop a
+ *  module into. A folder that can't be made is left alone. */
+export function ensureSourceDir(dir: string | undefined, log: Log = () => {}): void {
+  if (!dir) return;
+  try { fs.mkdirSync(dir, { recursive: true }); }
+  catch (e) { log("local sources: couldn't make", dir, String(e)); }
 }
 
 /** The row `source` key for a module: "local-<id>", safe for HTML ids. */
@@ -111,12 +127,12 @@ export async function searchLocalSource(m: LocalSourceModule, query: string): Pr
     }));
 }
 
-/** Load one item from a module as Ready Set notes-JSON. MIDI bytes go through
- *  `midiToNotesJson` (the WASM core's midi_build_notes_json). */
+/** Load one item from a module as Ready Set notes-JSON. Guitar Pro bytes,
+ *  MusicXML text and MIDI bytes go through the WASM core's parsers. */
 export async function localNotesJson(
   m: LocalSourceModule,
   id: string | number,
-  midiToNotesJson: (bytes: Uint8Array) => string,
+  parse: Parsers,
 ): Promise<string> {
   const r: any = await m.load(id);
   if (r && typeof r.notesJson === "string") {
@@ -124,6 +140,8 @@ export async function localNotesJson(
     if (!song || !Array.isArray(song.tracks)) throw new Error(`${m.label}: notesJson has no tracks`);
     return r.notesJson;
   }
-  if (r && r.midi instanceof Uint8Array) return midiToNotesJson(new Uint8Array(r.midi));
-  throw new Error(`${m.label}: load() must return { midi } or { notesJson }`);
+  if (r && r.gp instanceof Uint8Array) return parse.gp(new Uint8Array(r.gp));
+  if (r && typeof r.musicxml === "string") return parse.musicxml(r.musicxml);
+  if (r && r.midi instanceof Uint8Array) return parse.midi(new Uint8Array(r.midi));
+  throw new Error(`${m.label}: load() must return { gp }, { musicxml }, { midi } or { notesJson }`);
 }

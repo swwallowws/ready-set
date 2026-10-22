@@ -56,6 +56,14 @@ button[aria-pressed="true"]:hover { background:var(--ground-2); }
   flex-direction:column; gap:3px; }
 .srcs .tip b { color:var(--ink); font-weight:600; margin-right:4px; }
 .srcs:hover .tip, .srcs:focus-within .tip, .srcs.open .tip { display:flex; }
+/* Covers the gap under the button, so the tip stays open on the way to its copy button. */
+.srcs .tip::before { content:""; position:absolute; left:0; right:0; top:-7px; height:7px; }
+.srcs .own { margin-top:4px; padding-top:6px; border-top:var(--hairline); }
+.srcs .own .dir { display:flex; align-items:flex-start; gap:6px; margin-top:3px; }
+.srcs .own code { flex:1; min-width:0; color:var(--ink); font:inherit; overflow-wrap:anywhere; }
+.srcs .own button { flex:0 0 auto; border:var(--hairline); background:transparent; color:var(--ink-mut); cursor:pointer;
+  font:500 10px/1.4 var(--font-mono); text-transform:uppercase; letter-spacing:.06em; padding:1px 6px; }
+.srcs .own button:hover { color:var(--ink); }
 
 /* results: the website's result rows (web/index.html, /try/) plus an inline Play */
 .filters { display:flex; flex-wrap:wrap; margin-top:12px; }
@@ -325,6 +333,11 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
         '<span><b>Mutopia</b> public-domain scores, always searched</span>' +
         (S.localLabels || []).map((l) => '<span><b>' + esc(l) + '</b> local source module, always searched</span>').join('') +
         '<span><b>BitMidi, FreeMIDI</b> fan-made MIDI, searched when included</span>' +
+        (S.sourcesDir
+          ? '<span class="own"><b>Your own</b> drop a source module (.js) here, then reopen Ableton Live' +
+            '<span class="dir"><code id="srcs-dir">' + esc(S.sourcesDir) + '</code>' +
+            '<button type="button" id="srcs-copy">Copy</button></span></span>'
+          : '') +
       '</span></span>';
   const uploadsBox = () =>
     '<div class="opt-row"><label class="check"><input type="checkbox" id="uploads"' + (S.uploads ? ' checked' : '') + ' />' +
@@ -336,6 +349,22 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
     btn.onclick = (e) => { e.preventDefault(); set(!box.classList.contains('open')); };
     btn.addEventListener('keydown', (e) => { if (e.key === 'Escape') { set(false); btn.blur(); } });
     document.addEventListener('pointerdown', (e) => { if (!box.contains(e.target)) set(false); });
+    // Copy the sources folder: the clipboard API where the webview allows it,
+    // a hidden textarea where it doesn't.
+    const copy = document.getElementById('srcs-copy');
+    if (copy) copy.onclick = (e) => {
+      e.preventDefault();
+      const done = () => { copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy'; }, 1200); };
+      const fallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = S.sourcesDir; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { if (document.execCommand('copy')) done(); } catch (_) { /* nothing to copy with */ }
+        document.body.removeChild(ta);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(S.sourcesDir).then(done, fallback);
+      else fallback();
+    };
   }
 
   // ---- views --------------------------------------------------------------

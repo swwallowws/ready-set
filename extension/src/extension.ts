@@ -14,7 +14,7 @@ import {
 } from "../../shared/sources.js";
 // Optional user-installed search sources (see localSources.ts / README).
 import {
-  localSourceDirs, loadLocalSources, localSourceKey, searchLocalSource, localNotesJson,
+  localSourceDirs, loadLocalSources, localSourceKey, searchLocalSource, localNotesJson, ensureSourceDir,
   type LocalSourceModule,
 } from "./localSources.js";
 
@@ -117,12 +117,14 @@ export function activate(activation: ActivationContext) {
   };
 
   // ---- local source modules (optional, user-installed) ---------------------
-  // Loaded once at startup from <storageDirectory>/sources (or
-  // ~/.ready-set/sources). None found: the list is empty and nothing changes.
+  // Loaded once at startup from <storageDirectory>/sources (made if missing,
+  // and shown in the modal's Sources list), or ~/.ready-set/sources on a dev
+  // run with no storage directory. None found: nothing changes.
   const storageDirectory = (() => {
     try { return (context as any).environment?.storageDirectory as string | undefined; } catch { return undefined; }
   })();
   const localDirs = localSourceDirs(storageDirectory);
+  ensureSourceDir(localDirs[0], dbg);
   const localSources: LocalSourceModule[] = loadLocalSources(localDirs, { log: dbg });
   dbg("local source folders", localDirs.join(", "), "loaded", localSources.length);
   const localByKey = new Map(localSources.map((m) => [localSourceKey(m), m]));
@@ -196,7 +198,11 @@ export function activate(activation: ActivationContext) {
       // cached; a miss means the cache was cleared.
       throw new Error("the opened file is no longer loaded; open it again");
     } else if (local) {
-      json = await localNotesJson(local, rec.localId!, (b) => tabridge.midi_build_notes_json(b, 0));
+      json = await localNotesJson(local, rec.localId!, {
+        midi: (b) => tabridge.midi_build_notes_json(b, 0),
+        gp: (b) => tabridge.guitarpro_build_notes_json(b, 0),
+        musicxml: (t) => tabridge.musicxml_build_notes_json(t, 0),
+      });
     } else {
       // FreeMIDI needs the proxy's two-step endpoint; BitMidi/Mutopia have a
       // direct URL.
@@ -433,6 +439,7 @@ export function activate(activation: ActivationContext) {
   // are opt-in and personal-use only. Mutopia and any installed local source
   // modules are always searched.
   const localLabels = localSources.map((m) => m.label);
+  const sourcesDir = localDirs[0] ?? "";
   context.commands.registerCommand("tabridge.import", async () => {
     let mode: "start" | "results" | "preview" = "start";
     let results: SearchRec[] = [];
@@ -451,7 +458,7 @@ export function activate(activation: ActivationContext) {
 
     for (;;) {
       const state = {
-        mode, results, query, uploads, semitones, error, selectedUid, previewFrom, localLabels,
+        mode, results, query, uploads, semitones, error, selectedUid, previewFrom, localLabels, sourcesDir,
         intro: mode === "results" ? intro : null,
         preview: mode === "preview" ? preview : null,
       };
