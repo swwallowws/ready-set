@@ -357,7 +357,13 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
     const notes = cfg.notes, tempo = cfg.tempo || 120, beats = cfg.beats || 32;
     const ctx = canvas.getContext('2d');
     const mel = notes.filter((n) => !n.k), drum = notes.filter((n) => n.k);
-    let nodes = [], oscs = [], playing = false, phStart = 0, raf = 0, pos = 0, schedTimer = 0;
+    // Sounding (or scheduled) sources; each removes itself when it ends, so a
+    // whole song doesn't pile up thousands of finished nodes in memory.
+    let nodes = new Set(), oscs = new Set(), playing = false, phStart = 0, raf = 0, pos = 0, schedTimer = 0;
+    const track = (o, isOsc) => {
+      nodes.add(o); if (isOsc) oscs.add(o);
+      o.onended = () => { nodes.delete(o); oscs.delete(o); };
+    };
     let cache = null, cw = 0, ch = 0, pMin = 0, pMax = 0;
     // The pitch span drawn, plus one empty row above and below, so the highest
     // and lowest notes don't sit under the frame and look cut off.
@@ -388,7 +394,7 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
     function setBtn() { playBtn.textContent = playing ? 'Stop' : 'Play'; playBtn.setAttribute('aria-pressed', String(playing)); }
     function stop(rewind) { playing = false; if (rewind) pos = 0; cancelAnimationFrame(raf);
       if (schedTimer) { clearInterval(schedTimer); schedTimer = 0; }
-      nodes.forEach((n) => { try { n.stop(); } catch (e) {} }); nodes = []; oscs = [];
+      nodes.forEach((n) => { try { n.stop(); } catch (e) {} }); nodes = new Set(); oscs = new Set();
       setBtn(); draw(); }
     function play() {
       if (playing) { stop(false); return; }
@@ -398,20 +404,23 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
       // Each voice filters itself; this only takes the harshest top off.
       const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7000; lp.Q.value = 0.5;
       master.connect(lp); lp.connect(a.destination);
-      // Look-ahead scheduler: only build nodes for the next ~0.4 s of notes as
+      // Look-ahead scheduler: only build nodes for the next second of notes as
       // playback advances, so the whole song stays light (no thousands of
-      // oscillators created up front). Notes arrive already sorted by start.
-      let mi = 0, di = 0; const LOOK = 0.4;
+      // oscillators created up front). A second ahead rides out a stall in
+      // Live's webview (its own audio, a garbage collection) without a gap;
+      // stop and transpose still reach scheduled notes at once. Notes arrive
+      // already sorted by start.
+      let mi = 0, di = 0; const LOOK = 1.0;
       function scheduleUpTo(horizon) {
         while (mi < mel.length) { const n = mel[mi]; const nStart = n.s * SPB; if (nStart >= horizon) break; mi++;
           const nDur = Math.max(0.05, n.d * SPB), nEnd = nStart + nDur; if (nEnd <= from) continue;
           const st = t0 + Math.max(0, nStart - from), endT = t0 + (nEnd - from);
           // Transpose is in each oscillator's detune; live-updated in retune().
-          voice(a, master, n, st, endT).forEach((o) => { nodes.push(o); oscs.push(o); });
+          voice(a, master, n, st, endT).forEach((o) => track(o, true));
         }
         while (di < drum.length) { const n = drum[di]; const nStart = n.s * SPB; if (nStart >= horizon) break; di++;
           if (nStart + 0.25 <= from) continue; const st = t0 + Math.max(0, nStart - from);
-          drumHit(a, master, n.p, st).forEach((x) => nodes.push(x)); }
+          drumHit(a, master, n.p, st).forEach((x) => track(x, false)); }
       }
       playing = true; phStart = t0 - from; setBtn();
       scheduleUpTo(from + LOOK);
@@ -641,14 +650,14 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
       askMore();
     } else if (S.mode === "preview") {
       const P = S.preview || { p: [], tempo: 120, beats: 32 };
-      const sub = Math.round(P.tempo * 10) / 10 + ' BPM · whole song' + (P.truncated ? ' · clipped' : '') + ' · drag to scrub';
+      const sub = Math.round(P.tempo * 10) / 10 + ' BPM · whole song' + (P.truncated ? ' · clipped' : '') + ' · click or drag to jump';
       view.innerHTML =
         '<button class="back" id="back">← ' + (S.previewFrom === 'results' ? 'results' : 'open a different file') + '</button>' +
         '<div class="pv-title" style="margin-top:9px">' + esc(P.label) + '</div>' +
         '<div class="pv-sub">' + esc(sub) + '</div>' +
         '<canvas id="roll"></canvas>' +
         '<div class="pv-ctl"><button id="play">Play</button>' +
-        '<span class="hint" style="margin:0">Notes and drums. Slides and vibrato ride the .als export.</span></div>' +
+        '<span class="hint" style="margin:0">Plays notes and drums. For bends, slides and vibrato, use the website\'s .als download.</span></div>' +
         (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
         '<div class="hint">' + CLEAN + '</div>';
       foot.innerHTML = transposeFoot() + '<button class="primary" id="build2">Build into Set</button>';
