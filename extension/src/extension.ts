@@ -545,12 +545,24 @@ export function activate(activation: ActivationContext) {
               // this time. Interleave so each present source is visible near
               // the top.
               const none = Promise.resolve([] as SearchRec[]);
+              // Each source's outcome goes to the log (ExtensionHost.txt): a
+              // source that fails or times out just has no rows in the window.
+              const timed = (name: string, p: Promise<SearchRec[]>) => {
+                const t0 = Date.now();
+                const logged = p.then(
+                  (r) => { dbg(`search ${name}: ${r.length} results in ${Date.now() - t0} ms`); return r; },
+                  (e) => { dbg(`search ${name} failed after ${Date.now() - t0} ms: ${why(e)}`); return [] as SearchRec[]; },
+                );
+                return withTimeout(logged, SEARCH_TIMEOUT_MS, null as SearchRec[] | null).then((r) => {
+                  if (r === null) dbg(`search ${name}: no answer within ${SEARCH_TIMEOUT_MS} ms`);
+                  return r ?? [];
+                });
+              };
               const lists = await Promise.all([
-                withTimeout(searchMutopia(query), SEARCH_TIMEOUT_MS, [] as SearchRec[]),
-                ...localSources.map((m) =>
-                  withTimeout(searchLocalSource(m, query) as Promise<SearchRec[]>, SEARCH_TIMEOUT_MS, [] as SearchRec[])),
-                uploads ? withTimeout(searchBitmidi(query), SEARCH_TIMEOUT_MS, [] as SearchRec[]) : none,
-                uploads ? withTimeout(searchFreemidi(query), SEARCH_TIMEOUT_MS, [] as SearchRec[]) : none,
+                timed("Mutopia", searchMutopia(query)),
+                ...localSources.map((m) => timed(m.label, searchLocalSource(m, query) as Promise<SearchRec[]>)),
+                uploads ? timed("BitMidi", searchBitmidi(query)) : none,
+                uploads ? timed("FreeMIDI", searchFreemidi(query)) : none,
               ]);
               results = mergeInterleaved(lists);
               // Prefetch the first bars of the top FAST-source results so each of
