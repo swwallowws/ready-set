@@ -96,6 +96,11 @@ canvas.iroll { width:100%; height:56px; display:block; border:var(--hairline); }
 .pv-sub { color:var(--ink-mut); font:11px var(--font-mono); margin-top:2px; }
 canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:var(--hairline); cursor:pointer; touch-action:none; }
 .pv-ctl { display:flex; align-items:center; gap:10px; margin-top:10px; }
+/* While a step runs in place: the window dims behind one quiet line. */
+.busy { position:fixed; inset:0; z-index:10; display:grid; place-items:center;
+  background:color-mix(in srgb, var(--ground) 72%, transparent);
+  color:var(--ink); font:500 12px var(--font-mono); text-transform:uppercase; letter-spacing:.06em; }
+.busy[hidden] { display:none; }
 </style>
 <script>/*__ROLL__*/</script>
 <script>/*__VALUEBOX__*/</script>
@@ -109,9 +114,14 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
 </div>
 <div class="view" id="view"></div>
 <div class="foot" id="foot"></div>
+<div class="busy" id="busy" role="status" aria-live="polite" hidden></div>
 
 <script>
-  const S = '__STATE__';               // replaced with the injected state object at runtime
+  let S = '__STATE__';                 // replaced with the injected state object at runtime
+  // Served by the extension's local server: steps run without closing the
+  // window, and only Build and Cancel close it. Otherwise every step closes
+  // the window and the host reopens it.
+  const LIVE = !!S.live;
   const view = document.getElementById('view');
   const foot = document.getElementById('foot');
   const R = window.TabridgeRoll;
@@ -123,15 +133,47 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
   const CLEAN = 'Tracks are added to the <b>Set you have open</b>. For a clean start, open a new Set (⌘N) first.';
   const LABELS = { midi: 'BitMidi', freemidi: 'FreeMIDI', mutopia: 'Mutopia' };
   // Rows from a local source module carry their own label.
-  (S.results || []).forEach((r) => { if (r.label && !LABELS[r.source]) LABELS[r.source] = r.label; });
+  const learnLabels = () => (S.results || []).forEach((r) => { if (r.label && !LABELS[r.source]) LABELS[r.source] = r.label; });
+  learnLabels();
   const srcLabel = (s) => LABELS[s] || s;
 
   const esc = (s) => (s || "").toString().replace(/[&<>"]/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  function send(obj) {
+  function closeWith(obj) {
     const msg = { method: "close_and_send", params: [JSON.stringify(obj)] };
     try { window.webkit.messageHandlers.live.postMessage(msg); return; } catch (e) {}
     try { window.chrome.webview.postMessage(msg); return; } catch (e) {}
+  }
+  function send(obj) {
+    if (LIVE && obj.action !== 'build' && obj.action !== 'cancel') return ask(obj);
+    closeWith(obj);
+  }
+  // A step in place: post it to the local server, then redraw from the state it
+  // answers with. The cover only shows if the step takes a moment, so quick
+  // ones (back, home) don't flash.
+  const BUSY = { search: 'Searching…', quickload: 'Loading…', preview: 'Loading preview…', file: 'Reading the file…' };
+  let busy = false;
+  async function ask(obj) {
+    if (busy) return;
+    busy = true;
+    const cover = document.getElementById('busy');
+    const t = setTimeout(() => { cover.textContent = BUSY[obj.action] || 'One moment…'; cover.hidden = false; }, 150);
+    let next;
+    try {
+      const r = await fetch('/act' + location.search, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj),
+      });
+      if (!r.ok) throw new Error((await r.text()) || 'HTTP ' + r.status);
+      next = await r.json();
+    } catch (e) {
+      next = Object.assign({}, S, { error: 'Something went wrong: ' + (e && e.message ? e.message : e) });
+    }
+    clearTimeout(t); cover.hidden = true; busy = false;
+    players.forEach((p) => p.stop(false));
+    if (obj.action === 'search') filter = 'all';
+    S = next; sel = S.selectedUid ?? null; semis = S.semitones || 0;
+    learnLabels();
+    render();
   }
   const uploadsOn = () => { const c = document.getElementById('uploads'); return c ? c.checked : !!S.uploads; };
   const doSearch = (v) => { const q = (v || "").trim(); if (q) send({ action: "search", query: q, uploads: uploadsOn() }); };
@@ -342,13 +384,17 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
   const uploadsBox = () =>
     '<div class="opt-row"><label class="check"><input type="checkbox" id="uploads"' + (S.uploads ? ' checked' : '') + ' />' +
     '<span>Include fan-made MIDI <span class="mut">(fine for practice, not for release)</span></span></label>' + sourcesTip() + '</div>';
+  let srcsOutside = null;
   function wireSources() {
     const box = document.getElementById('srcs'), btn = document.getElementById('srcs-btn');
     if (!box) return;
     const set = (on) => { box.classList.toggle('open', on); btn.setAttribute('aria-expanded', String(on)); };
     btn.onclick = (e) => { e.preventDefault(); set(!box.classList.contains('open')); };
     btn.addEventListener('keydown', (e) => { if (e.key === 'Escape') { set(false); btn.blur(); } });
-    document.addEventListener('pointerdown', (e) => { if (!box.contains(e.target)) set(false); });
+    // One outside-click listener at a time: the window redraws in place.
+    if (srcsOutside) document.removeEventListener('pointerdown', srcsOutside);
+    srcsOutside = (e) => { if (!box.contains(e.target)) set(false); };
+    document.addEventListener('pointerdown', srcsOutside);
     // Copy the sources folder: the clipboard API where the webview allows it,
     // a hidden textarea where it doesn't.
     const copy = document.getElementById('srcs-copy');
@@ -470,6 +516,8 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
       view.querySelectorAll('.res-play[data-inline]').forEach((b) =>
         (b.onclick = () => playInline(byId[b.dataset.inline], b)));
       view.querySelectorAll('.res-play[data-load]').forEach((b) => (b.onclick = () => {
+        // Unlock audio inside this click, so the intro can start when it arrives.
+        if (LIVE) ac();
         setSel(b.dataset.load); send({ action: "quickload", uid: b.dataset.load, semitones: semis }); }));
       const q = document.getElementById('q');
       document.getElementById('again').onclick = () => doSearch(q.value);
@@ -478,15 +526,17 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:12px; border:v
       wireTranspose();
       wireSources();
 
-      // If we returned from a fallback load, expand that row ready to play (the
-      // reopened modal can't autoplay, so it waits for one click).
+      // If we returned from an on-click load, expand that row ready to play. In
+      // place, it plays right away (the click unlocked audio); a reopened
+      // window can't autoplay, so it waits for one click.
       if (S.intro && byId[S.intro.uid]) {
         const rec = byId[S.intro.uid], btn = document.getElementById('row-' + S.intro.uid)?.querySelector('.res-play');
         if (btn) { setSel(rec.uid); const row = document.getElementById('row-' + rec.uid); row.classList.add('loaded');
           const cv = document.createElement('canvas'); cv.className = 'iroll'; row.appendChild(cv);
           const p = makePlayer({ notes: decode(rec.intro), tempo: rec.intro.tempo, beats: rec.intro.beats,
             canvas: cv, playBtn: btn, controllable: true });
-          players.push(p); open = { uid: rec.uid, player: p, btn, rec }; }
+          players.push(p); open = { uid: rec.uid, player: p, btn, rec };
+          if (LIVE && S.intro.autoplay) p.play(); }
       }
 
       const pv = document.getElementById('preview'); if (pv) pv.onclick = () => sel != null && send({ action: "preview", uid: sel, semitones: semis });

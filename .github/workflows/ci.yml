@@ -39,6 +39,8 @@ jobs:
           node scripts/test_hero.mjs
           node scripts/test_try_search.mjs
           node scripts/test_extension_link.mjs
+      - name: The extension's import window server
+        run: node extension/test/window-server.test.ts
 
   readme:
     runs-on: ubuntu-latest

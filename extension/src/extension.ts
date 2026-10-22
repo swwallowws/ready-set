@@ -17,6 +17,7 @@ import {
   localSourceDirs, loadLocalSources, localSourceKey, searchLocalSource, localNotesJson, ensureSourceDir,
   type LocalSourceModule,
 } from "./localSources.js";
+import { startWindowServer } from "./windowServer.js";
 
 // ---- drum-kit synthesis (host side) -------------------------------------
 // The preview synths drums with Web Audio; here we render the SAME voices to
@@ -432,12 +433,17 @@ export function activate(activation: ActivationContext) {
     })());
   }
 
-  // ---- command: a reopening modal -----------------------------------------
+  // ---- command: the import window -----------------------------------------
   // start (open a file, or search) -> preview -> build, or
   // start -> results -> preview -> build. The user's own file is the main path;
   // online search is secondary, and its user-upload sources (BitMidi, FreeMIDI)
   // are opt-in and personal-use only. Mutopia and any installed local source
   // modules are always searched.
+  //
+  // The window is served from a local server (windowServer.ts), so search,
+  // load and preview run while it stays open; only Build closes it. If the
+  // server can't start, the window falls back to closing and reopening for
+  // each step (a data: URL modal), with the host's progress dialogs between.
   const localLabels = localSources.map((m) => m.label);
   const sourcesDir = localDirs[0] ?? "";
   context.commands.registerCommand("tabridge.import", async () => {
@@ -456,19 +462,20 @@ export function activate(activation: ActivationContext) {
       fileRec && uid === fileRec.uid ? fileRec : results.find((r) => r.uid === uid);
     const notesFor = (rec: SearchRec) => (rec.source === "file" ? Promise.resolve(fileJson) : ensureNotesJson(rec));
 
-    for (;;) {
-      const state = {
-        mode, results, query, uploads, semitones, error, selectedUid, previewFrom, localLabels, sourcesDir,
-        intro: mode === "results" ? intro : null,
-        preview: mode === "preview" ? preview : null,
-      };
-      const html = interfaceHtml.replace("'__STATE__'", () => JSON.stringify(state));
-      const url = `data:text/html,${encodeURIComponent(html)}`;
+    let live = false;   // the window is served by the local server
+    const state = () => ({
+      mode, results, query, uploads, semitones, error, selectedUid, previewFrom, localLabels, sourcesDir, live,
+      intro: mode === "results" ? intro : null,
+      preview: mode === "preview" ? preview : null,
+    });
+    const page = () => interfaceHtml.replace("'__STATE__'", () => JSON.stringify(state()));
+    // A live window shows its own "Searching…"; the reopening one gets the
+    // host's progress dialog between windows.
+    const withProgress = (text: string, fn: (upd: (t: string, p?: number) => Promise<void>) => Promise<void>) =>
+      live ? fn(async () => {}) : context.ui.withinProgressDialog(text, { progress: 0 }, fn);
 
-      let payload: any = null;
-      try { payload = JSON.parse(await context.ui.showModalDialog(url, 460, 620)); }
-      catch { payload = null; } // closed with no result
-      if (!payload || payload.action === "cancel") break;
+    // One step of the window, everything but Build and Cancel.
+    async function act(payload: any): Promise<void> {
       error = "";
 
       // The user's own file: parse it with the same WASM core as the website,
@@ -495,17 +502,17 @@ export function activate(activation: ActivationContext) {
           error = `Couldn't read ${name}: ${String(e)}`;
           mode = "start";
         }
-        continue;
+        return;
       }
 
-      if (payload.action === "home") { semitones = payload.semitones | 0; mode = "start"; continue; }
+      if (payload.action === "home") { semitones = payload.semitones | 0; mode = "start"; return; }
 
       if (payload.action === "search") {
         query = payload.query || "";
         uploads = !!payload.uploads;
         try {
-          await context.ui.withinProgressDialog(
-            "Searching…", { progress: 0 },
+          await withProgress(
+            "Searching…",
             async (upd) => {
               const names = ["Mutopia", ...localLabels, ...(uploads ? ["BitMidi", "FreeMIDI"] : [])];
               await upd(`Searching ${names.join(", ")}…`, 20);
@@ -525,9 +532,8 @@ export function activate(activation: ActivationContext) {
               ]);
               results = mergeInterleaved(lists);
               // Prefetch the first bars of the top FAST-source results so each of
-              // their play buttons sounds INLINE on one click (a reopened modal
-              // can't autoplay without a user gesture, so the notes must already be
-              // here). Slow archive rows are skipped here and load on click. Each
+              // their play buttons sounds INLINE on one click, with no round trip.
+              // Slow archive rows are skipped here and load on click. Each
               // prefetch is time-boxed so one slow file can't stall the view.
               const top = results.filter((r) => prefetches(r.source)).slice(0, PREFETCH_INTROS);
               let done = 0;
@@ -546,10 +552,10 @@ export function activate(activation: ActivationContext) {
           mode = "results"; selectedUid = null; intro = null;
         }
         catch (e) { error = "Search failed. " + String(e); mode = "start"; }
-        continue;
+        return;
       }
 
-      if (payload.action === "back") { semitones = payload.semitones | 0; mode = previewFrom; continue; }
+      if (payload.action === "back") { semitones = payload.semitones | 0; mode = previewFrom; return; }
 
       // Quick intro: load the selected song's first bars and play them inline in
       // the results view, before opening the full preview.
@@ -560,14 +566,14 @@ export function activate(activation: ActivationContext) {
           const rec = results.find((r) => r.uid === payload.uid);
           if (!rec) throw new Error("not in results");
           let json = "";
-          await context.ui.withinProgressDialog(
-            "Loading…", { progress: 0 },
+          await withProgress(
+            "Loading…",
             async (upd) => { await upd("Fetching…", 55); json = await ensureNotesJson(rec); },
           );
           intro = { ...buildPreview(json, recLabel(rec), INTRO_BEATS), uid: payload.uid, autoplay: true };
         } catch (e) { error = "Load failed. " + String(e); intro = null; }
         mode = "results";
-        continue;
+        return;
       }
 
       if (payload.action === "preview") {
@@ -577,31 +583,48 @@ export function activate(activation: ActivationContext) {
           const rec = findRec(payload.uid);
           if (!rec) throw new Error("not in results");
           let json = "";
-          await context.ui.withinProgressDialog(
-            "Loading preview…", { progress: 0 },
+          await withProgress(
+            "Loading preview…",
             async (upd) => { await upd("Fetching…", 40); json = await notesFor(rec); await upd("Rendering…", 85); },
           );
           preview = buildPreview(json, recLabel(rec), null);
           previewFrom = "results";
           mode = "preview";
         } catch (e) { error = "Preview failed. " + String(e); mode = "results"; }
-        continue;
+        return;
       }
+    }
 
-      if (payload.action === "build") {
-        semitones = payload.semitones | 0;
-        selectedUid = payload.uid;
-        try {
-          const rec = findRec(payload.uid);
-          if (!rec) throw new Error("not in results");
-          const json = await notesFor(rec);
-          await context.ui.withinProgressDialog(
-            "Building into your Set…", { progress: 0 },
-            async (upd) => { await build(json, semitones, recLabel(rec), upd); },
-          );
-          break; // success
-        } catch (e) { error = "Build failed. " + String(e); mode = mode === "preview" ? "preview" : "results"; continue; }
+    const server = await startWindowServer(page, async (payload) => { await act(payload); return state(); }, dbg);
+    live = !!server;
+    dbg(server ? `import window served at ${server.url.replace(/\?.*/, "")}` : "import window: reopening fallback");
+    try {
+      for (;;) {
+        const url = server ? server.url : `data:text/html,${encodeURIComponent(page())}`;
+        let payload: any = null;
+        try { payload = JSON.parse(await context.ui.showModalDialog(url, 460, 620)); }
+        catch { payload = null; } // closed with no result
+        if (!payload || payload.action === "cancel") break;
+
+        if (payload.action === "build") {
+          semitones = payload.semitones | 0;
+          selectedUid = payload.uid;
+          try {
+            const rec = findRec(payload.uid);
+            if (!rec) throw new Error("not in results");
+            const json = await notesFor(rec);
+            await context.ui.withinProgressDialog(
+              "Building into your Set…", { progress: 0 },
+              async (upd) => { await build(json, semitones, recLabel(rec), upd); },
+            );
+            break; // success
+          } catch (e) { error = "Build failed. " + String(e); mode = mode === "preview" ? "preview" : "results"; continue; }
+        }
+        // Only the reopening fallback sends other actions this way.
+        await act(payload);
       }
+    } finally {
+      server?.close();
     }
   });
 
