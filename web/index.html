@@ -22,7 +22,10 @@
   // before paint: ?theme= wins, then the mode saved in any of the products (they share it)
   try { let t = new URLSearchParams(location.search).get("theme");
         if (t !== "paper" && t !== "night") t = localStorage.getItem("swwallowws:mode");
-        if (t === "paper" || t === "night") document.documentElement.dataset.theme = t; } catch (_) {}
+        if (t === "paper" || t === "night") document.documentElement.dataset.theme = t;
+        // ?embed=1&clip=example: only the example, for the showcase to frame
+        const q = new URLSearchParams(location.search);
+        if (q.get("embed") === "1" && q.get("clip") === "example") document.documentElement.dataset.clip = "example"; } catch (_) {}
 </script>
 <script src="./shared/roll.js"></script>
 <style>
@@ -147,6 +150,13 @@
     .demo-bar .src { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  /* framed as a clip: the example alone, on the host page's background */
+  [data-clip="example"] body { background: transparent; }
+  [data-clip="example"] .ds-header, [data-clip="example"] .note-bar,
+  [data-clip="example"] main > section:not(#example), [data-clip="example"] #example > .eyebrow { display: none; }
+  [data-clip="example"] main { max-width: none; padding: 0; }
+  [data-clip="example"] #example { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -379,6 +389,12 @@
   R.onSchemeChange(refreshPalette);
   document.fonts && document.fonts.ready.then(refreshPalette);
   refreshPalette();
+
+  // framed as a clip: tell the host page how tall the example is
+  if (document.documentElement.dataset.clip && window.parent !== window) {
+    const example = document.getElementById('example');
+    new ResizeObserver(() => window.parent.postMessage({ type: 'demo-height', height: example.offsetHeight }, '*')).observe(example);
+  }
 </script>
 <script type="module" src="./app.js"></script>
 </body>
