@@ -38,9 +38,9 @@ cp "$root/shared/roll.js" "$root/shared/sources.js" "$root/shared/midiplay.js" "
 cp "$root"/shared/vendor/design/*.css "$root"/shared/vendor/design/*.js "$target/shared/vendor/design/"
 cp "$root"/shared/vendor/design/fonts/* "$target/shared/vendor/design/fonts/"
 # The preview's sounds: the design system's shared General MIDI bank (and its
-# NOTICE), played by the design system's spessasynth (and its LICENSE and NOTICE;
-# the .d.ts stays behind).
-cp "$root/shared/vendor/design/sound/gm.sf3" "$root/shared/vendor/design/sound/NOTICE" "$target/shared/vendor/design/sound/"
+# NOTICE) and the loader that fetches it (soundfont.js), played by the design
+# system's spessasynth (and its LICENSE and NOTICE; the .d.ts files stay behind).
+cp "$root/shared/vendor/design/sound/gm.sf3" "$root/shared/vendor/design/sound/NOTICE" "$root/shared/vendor/design/sound/soundfont.js" "$target/shared/vendor/design/sound/"
 cp "$root"/shared/vendor/design/sound/spessasynth/*.min.js "$root/shared/vendor/design/sound/spessasynth/LICENSE" "$root/shared/vendor/design/sound/spessasynth/NOTICE" "$target/shared/vendor/design/sound/spessasynth/"
 
 # The hosted proxy, and no local Live template on a static host.

@@ -84,7 +84,7 @@ jobs:
         env:
           BASE: ${{ steps.deployment.outputs.page_url }}
         run: |
-          for path in "" try/ pkg/tabridge_bg.wasm shared/vendor/design/sound/gm.sf3 version.json; do
+          for path in "" try/ pkg/tabridge_bg.wasm shared/vendor/design/sound/gm.sf3 shared/vendor/design/sound/soundfont.js version.json; do
             ok=""
             for attempt in 1 2 3 4 5 6; do
               if curl -fsS -o /dev/null "${BASE}${path}"; then ok=1; break; fi

@@ -14,34 +14,23 @@
 //   seekOnRoll(canvas, roll, player);  // click or drag on the roll moves the playhead
 //   zoomOnRoll(canvas, roll);          // pinch or ⌘ + scroll zooms, a double-click shows it all
 //
-// The bank is fetched once and kept in the Cache API; bump SF_VERSION when a design sync
-// changes gm.sf3.
+// The bank comes from the design's fetchSoundfont: the one copy every studio on the site
+// shares, fetched once and kept in the Cache API, else this site's own; bump SF_VERSION when a
+// design sync changes gm.sf3.
 import { iconButton } from "./vendor/design/iconbutton.js";
 import { seekable, clampTime, heardTime } from "./vendor/design/playhead.js";
+import { fetchSoundfont } from "./vendor/design/sound/soundfont.js";
 
 const VENDOR = new URL("./vendor/design/sound/spessasynth/", import.meta.url);
 const SF_VERSION = "1";
 const SF_URL = new URL(`./vendor/design/sound/gm.sf3?v=${SF_VERSION}`, import.meta.url).href;
-const SF_CACHE = "ready-set-soundfont";
+const OLD_CACHE = "ready-set-soundfont";       // where this site kept its own copy before
 const RAMP = 0.02;
 
 let bank = null;
 /** the shared bank's bytes: from the browser's cache, else fetched once and cached */
 export function soundfontBytes() {
-  bank = bank || (async () => {
-    let cache = null;
-    try { cache = await caches.open(SF_CACHE); } catch { /* no Cache API here: fetch every time */ }
-    let res = cache && (await cache.match(SF_URL));
-    if (!res) {
-      res = await fetch(SF_URL);
-      if (!res.ok) throw new Error(`the sounds did not load (${res.status})`);
-      if (cache) {
-        for (const old of await cache.keys()) if (old.url !== SF_URL) await cache.delete(old);
-        await cache.put(SF_URL, res.clone()).catch(() => {});
-      }
-    }
-    return res.arrayBuffer();
-  })();
+  bank = bank || fetchSoundfont(SF_URL, { retire: [OLD_CACHE] });
   bank.catch(() => { bank = null; });               // a failed load can be tried again
   return bank;
 }
