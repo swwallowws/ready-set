@@ -38,7 +38,6 @@ jobs:
         run: |
           node scripts/test_hero.mjs
           node scripts/test_try_search.mjs
-          node scripts/test_extension_link.mjs
       - name: The extension's window server, fresh-set check and instrument choice
         run: |
           node extension/test/window-server.test.ts

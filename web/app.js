@@ -32,11 +32,12 @@ import {
   freemidiSearchUrl, freemidiArtistPageUrl, freemidiDownloadPath,
   mutopiaSearchUrl,
   normBitmidi, normFreemidi, normMutopia,
-  firstFreemidiArtist, srcLabel, recLabel,
+  firstFreemidiArtist, srcLabel,
 } from "./shared/sources.js";
 import { searchCatalog } from "./try/search.js";
-import { midiPlayer, rollView, seekOnRoll } from "./shared/midiplay.js";
+import { midiPlayer, rollView, seekOnRoll, zoomOnRoll } from "./shared/midiplay.js";
 import { valueBox } from "./shared/vendor/design/valuebox.js";
+import { iconButton, iconSvg } from "./shared/vendor/design/iconbutton.js";
 import { outputDelay } from "./shared/vendor/design/playhead.js";
 
 // What this host offers: { proxy, template }. `proxy` is the proxy's base URL
@@ -115,21 +116,13 @@ const transpose = valueBox($("semitones"), {
 let templateXml = null;
 async function ready() {
   await init();
-  const none = "Instruments: none (minimal template, add them in Ableton Live)";
   // Only the local server can have a template (it's gitignored, never deployed),
   // so the static site doesn't ask for one.
-  if (!(await site).template) { $("template-state").textContent = none; return; }
+  if (!(await site).template) return;
   try {
     const res = await fetch("./template.als.xml");
-    if (res.ok) {
-      templateXml = await res.text();
-      $("template-state").textContent = "Instruments: included (from your Ableton Live template)";
-    } else {
-      $("template-state").textContent = none;
-    }
-  } catch {
-    $("template-state").textContent = none;
-  }
+    if (res.ok) templateXml = await res.text();
+  } catch { /* the built-in template */ }
 }
 const wasmReady = ready();
 
@@ -156,7 +149,7 @@ const searchMutopia = async (q) => {
   if ((await site).proxy) return normMutopia(await getText(mutopiaSearchUrl(q)));
   return searchCatalog(await loadCatalogue(), q).slice(0, 25).map((r) => ({
     source: "mutopia", id: r.uid, uid: r.uid, artist: r.artist, title: r.title,
-    tracks: null, downloadUrl: `./try/${r.file}`, direct: true,
+    tracks: null, downloadUrl: `./try/${r.file}`, direct: true, credit: r.credit,
   }));
 };
 // FreeMIDI's search page mostly surfaces title matches; if that's thin, follow
@@ -194,9 +187,12 @@ $("search-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const q = $("q").value.trim();
   if (!q) return;
+  closeRow();
   stopPreview();
   results.innerHTML = "";
   $("filters").innerHTML = "";
+  showFilters(false);
+  $("by-source").hidden = true;
   activeFilter = "all";
   seenSources.length = 0;
   const { proxy } = await site;
@@ -232,29 +228,42 @@ $("search-form").addEventListener("submit", async (e) => {
 });
 
 function renderResult(r) {
+  const item = document.createElement("div");
+  item.className = "row-item";
+  item.dataset.source = r.source;
   const el = document.createElement("button");
   el.className = "result";
   el.type = "button";
-  el.dataset.source = r.source;
-  const meta = r.tracks != null
-    ? `${r.tracks} track${r.tracks === 1 ? "" : "s"}`
-    : "MIDI file";
+  // the source, and the track count once it's known: no "MIDI file" line
+  const src = srcLabel(r.source) + (r.tracks != null ? ` · ${r.tracks} track${r.tracks === 1 ? "" : "s"}` : "");
   el.innerHTML =
-    `<div class="rmain"><div class="t">${esc(r.artist ? `${r.artist} · ${r.title}` : r.title)}</div>` +
-    `<div class="m">${esc(meta)}</div></div>` +
-    `<span class="src">${esc(srcLabel(r.source))}</span>`;
-  el.addEventListener("click", () => pick(r, el));
+    `<div class="rmain"><div class="t">${esc(r.artist ? `${r.artist} · ${r.title}` : r.title)}</div></div>` +
+    `<span class="src">${esc(src)}</span><span class="go">${iconSvg("chevron", { dir: "right" })}</span>`;
+  el.setAttribute("aria-label", `Open ${r.artist ? `${r.artist}, ${r.title}` : r.title}`);
+  el.addEventListener("click", () => pick(r, item));
+  // hear it here, without opening it: play, and a small roll under the row
+  const play = iconButton({ icon: "play", toggle: true, label: `Play ${r.title}`, size: "s",
+    onPress: (on) => rowPlay(r, item, play, on) });
+  item.append(play.el, el);
   // Rows that stream in after a filter is picked start hidden if they don't match.
-  el.style.display = (activeFilter === "all" || r.source === activeFilter) ? "" : "none";
-  results.appendChild(el);
+  item.style.display = (activeFilter === "all" || r.source === activeFilter) ? "" : "none";
+  results.appendChild(item);
 }
 
-// Source filter buttons. Rebuilt as sources stream in; the active filter lives
-// in state, so it survives the rebuild and keeps applying to rows that arrive
-// later.
+// Filtering by source, only when asked for: "by source" beside the count (once more than
+// one source has answered) opens a line of plain words; closing it shows every source again.
+// Rebuilt as sources stream in; the active filter lives in state, so it survives the
+// rebuild and keeps applying to rows that arrive later.
+function showFilters(on) {
+  $("filters").hidden = !on;
+  $("by-source").setAttribute("aria-expanded", String(on));
+  if (!on && activeFilter !== "all") { activeFilter = "all"; applyFilter(); }
+}
+$("by-source").addEventListener("click", () => showFilters($("filters").hidden));
 function rebuildFilters() {
   const box = $("filters");
   box.innerHTML = "";
+  $("by-source").hidden = seenSources.length < 2;
   if (seenSources.length < 2) return;
   for (const [f, label] of [["all", "All"], ...seenSources.map((s) => [s, srcLabel(s)])]) {
     const b = document.createElement("button");
@@ -269,7 +278,7 @@ function rebuildFilters() {
 
 function applyFilter() {
   $("filters").querySelectorAll("button").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.filter === activeFilter)));
-  results.querySelectorAll(".result").forEach((el) => {
+  results.querySelectorAll(".row-item").forEach((el) => {
     el.style.display = (activeFilter === "all" || el.dataset.source === activeFilter) ? "" : "none";
   });
 }
@@ -277,51 +286,113 @@ function applyFilter() {
 // Fetch the .mid bytes for a MIDI-bearing result. FreeMIDI goes through the
 // proxy's two-step endpoint; live Mutopia files go through the proxy; BitMidi
 // (any origin allowed) and catalogue rows (files on this site) go direct.
+const bytesFor = new Map();       // uid -> the file's bytes, fetched once per search
 async function fetchMidiBytes(r) {
+  if (bytesFor.has(r.uid)) return bytesFor.get(r.uid);
   const { proxy } = await site;
   const url = r.source === "freemidi" ? await freemidiUrl(r.freemidiId)
     : (r.direct || r.source === "midi" || !proxy) ? r.downloadUrl : await proxied(r.downloadUrl);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return new Uint8Array(await res.arrayBuffer());
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  bytesFor.set(r.uid, bytes);
+  return bytes;
 }
 
-async function pick(r, el) {
-  // Silence any current preview immediately on click, before the async fetch
-  // below, and regardless of whether it succeeds.
-  stopPreview();
-  document.querySelectorAll(".result.sel").forEach((n) => n.classList.remove("sel"));
-  el.classList.add("sel");
-  $("picked").hidden = false;
-  $("picked-info").innerHTML = `<div class="t">${esc(recLabel(r))}</div>`;
-  $("download").disabled = true;
-  $("preview").disabled = true;
-  setStatus("Loading…");
+// A row's play button: the piece from its start in the shared player, a small roll under
+// the row following it. One row at a time; opening a piece or a new search closes it.
+let row = null;                   // { uid, item, btn, canvas }
+function closeRow() {
+  if (!row) return;
+  if (player) player.halt();
+  row.canvas.remove();
+  row.btn.setPressed(false);
+  row = null;
+  activeRoll = roll;
+}
+async function rowPlay(r, item, btn, on) {
+  if (row && row.uid === r.uid) {             // the same row: pause, or go on
+    if (on) player.play(); else player.pause();
+    return;
+  }
+  closeRow();
+  ensurePlayer().unlock();                    // inside the click, before any await
+  const canvas = document.createElement("canvas");
+  canvas.className = "iroll";
+  item.append(canvas);
+  const mine = { uid: r.uid, item, btn, canvas };
+  row = mine;
   try {
     await wasmReady;
-    const title = r.artist ? `${r.artist} · ${r.title}` : r.title;
-    // Every online source yields a .mid; fetch + summarize it.
     const bytes = await fetchMidiBytes(r);
-    selected = { kind: "midi", artist: r.artist, title: r.title, bytes };
-    let count = 0;
-    try { count = JSON.parse(midi_build_notes_json(bytes, 0)).tracks.length; } catch { /* keep 0 */ }
-    const sub = `${srcLabel(r.source)}${count ? ` · ${count} track${count === 1 ? "" : "s"}` : ""}`;
-    setFormatForSource(r.source);
-    $("picked").hidden = false;
-    $("picked-info").innerHTML = `<div class="t">${esc(title)}</div><div class="m">${esc(sub)}</div>`;
-    $("download").disabled = false;
-    $("preview").disabled = false;
-    setStatus("Ready.");
+    if (row !== mine) return;
+    const mini = rollView(canvas, { beats: 16 });
+    mini.setSong(JSON.parse(midi_build_notes_json(bytes, 0)));
+    seekOnRoll(canvas, mini, player);
+    activeRoll = mini;
+    if (!(await player.load(bytes)) || row !== mine) return;
+    player.play(0);
   } catch (err) {
-    setStatus(`Couldn't load: ${err}`, true);
+    if (row === mine) { closeRow(); setSearchStatus(`Couldn't play it: ${err.message || err}`); }
   }
 }
 
-// Every source can export both .mid and .als, so all formats stay enabled.
-// (Kept as a hook in case a future source is format-limited.)
-function setFormatForSource(_source) {
-  const als = $("format").querySelector('option[value="als"]');
-  als.disabled = false;
+// Find, hear, take: picking a result or a file folds the search away, shows what
+// was picked and plays it at once; the downloads come after it. The search icon
+// on the picked line brings the results back.
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const songMeta = (song) => [song.tempo ? `${Math.round(song.tempo)} BPM` : "", plural(song.tracks.length, "track")].filter(Boolean).join(" · ");
+function openPicked(title, back) {
+  closeRow();
+  stopPreview();
+  ensurePlayer().unlock();                  // inside the click, so the preview can sound when it's ready
+  activeRoll = roll;
+  $("change-pick").textContent = back;
+  $("find").hidden = true;
+  $("picked").hidden = false;
+  $("picked-title").textContent = title;
+  $("picked-meta").textContent = "";
+  $("credit").textContent = "";
+  $("take").hidden = true;
+}
+function backToFind() {
+  stopPreview();
+  selected = null;
+  $("picked").hidden = true;
+  $("find").hidden = false;
+  setStatus("");
+  $("q").focus();
+}
+$("change-pick").addEventListener("click", backToFind);
+
+// Where it's from and under what terms. The heading already names the piece, so the credit
+// doesn't: the catalogue's own credit loses its leading "<title> by <composer>, ".
+function creditFor(r) {
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  if (r.credit) {
+    const lead = `${r.title}${r.artist ? ` by ${r.artist}` : ""}, `;
+    return cap(r.credit.startsWith(lead) ? r.credit.slice(lead.length) : r.credit);
+  }
+  if (r.source === "mutopia") return "From the Mutopia Project, public domain";
+  return `Fan-made MIDI from ${srcLabel(r.source)}: fine for practice, not for release`;
+}
+
+async function pick(r, item) {
+  document.querySelectorAll(".row-item.sel").forEach((n) => n.classList.remove("sel"));
+  item.classList.add("sel");
+  openPicked(r.artist ? `${r.artist} · ${r.title}` : r.title, "← results");
+  setStatus("Loading…");
+  try {
+    await wasmReady;
+    // Every online source yields a .mid; fetch + summarize it.
+    const bytes = await fetchMidiBytes(r);
+    selected = { kind: "midi", artist: r.artist, title: r.title, bytes };
+    try { $("picked-meta").textContent = songMeta(JSON.parse(midi_build_notes_json(bytes, 0))); } catch { /* no meta */ }
+    $("credit").textContent = creditFor(r);
+    await loadPreview();
+  } catch (err) {
+    setStatus(`Couldn't load: ${err}`, true);
+  }
 }
 
 // Build output bytes for the current source, in the requested format ("mid" or
@@ -352,13 +423,9 @@ async function buildBytes(format, semitones) {
 // from their bytes, so a misnamed file still works.
 async function pickFile(file) {
   if (!file) return;
-  stopPreview();
-  document.querySelectorAll(".result.sel").forEach((n) => n.classList.remove("sel"));
-  $("picked").hidden = false;
-  $("picked-info").innerHTML = `<div class="t">${esc(file.name)}</div>`;
-  $("download").disabled = true;
-  $("preview").disabled = true;
-  setStatus("Reading file…");
+  document.querySelectorAll(".row-item.sel").forEach((n) => n.classList.remove("sel"));
+  openPicked(file.name.replace(/\.(musicxml|xml|midi?|mxl|gpx?|gp[345])$/i, ""), "← back");
+  setStatus("Reading the file…");
   try {
     await wasmReady;
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -382,14 +449,8 @@ async function pickFile(file) {
       // Validate + summarize by parsing once (throws on bad input).
       song = JSON.parse(musicxml_build_notes_json(xml, 0));
     }
-    const names = song.tracks.map((t) => t.name).filter(Boolean).join(", ");
-    $("picked-info").innerHTML = `<div class="t">${esc(title)}</div>` +
-      `<div class="m">${kind} · ${song.tracks.length} track${song.tracks.length === 1 ? "" : "s"}${names ? ` · ${esc(names)}` : ""}</div>`;
-    setFormatForSource(selected.kind);
-    $("download").disabled = false;
-    $("preview").disabled = false;
-    setStatus("Ready.");
-    $("picked").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    $("picked-meta").textContent = `${kind} · ${songMeta(song)}`;
+    await loadPreview();
   } catch (err) {
     selected = null;
     const msg = String(err.message || err);
@@ -409,24 +470,25 @@ drop.addEventListener("drop", (e) => {
   pickFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
 });
 
-$("download").addEventListener("click", async () => {
+// The downloads: an Ableton Live set, or MIDI, at the transpose you hear.
+async function take(format, btn) {
   if (!selected) return;
-  const format = $("format").value;
   const semitones = transpose.value;
-  $("download").disabled = true;
+  btn.disabled = true;
   try {
-    setStatus("Building…");
     const bytes = await buildBytes(format, semitones);
     const stem = [slug(selected.artist), slug(selected.title)].filter(Boolean).join("-") || "song";
     const name = `${stem}${semitones ? `_${semitones > 0 ? "+" : ""}${semitones}st` : ""}.${format}`;
     downloadBytes(bytes, name);
-    setStatus(`Downloaded ${name}.`);
+    setStatus("");
   } catch (err) {
     setStatus(`Build failed: ${err}`, true);
   } finally {
-    $("download").disabled = false;
+    btn.disabled = false;
   }
-});
+}
+$("download-set").addEventListener("click", (e) => take("als", e.currentTarget));
+$("download").addEventListener("click", (e) => take("mid", e.currentTarget));
 
 // ---- Preview: render the .mid in-browser and play it --------------------------
 // shared/midiplay.js: spessasynth with the design system's shared General MIDI
@@ -435,6 +497,7 @@ $("download").addEventListener("click", async () => {
 // nothing loads from a CDN.
 let player = null;        // midiPlayer, made on the first Preview
 let roll = null;          // rollView over #preview-roll
+let activeRoll = null;    // the roll the playhead draws on: the open piece's, or a row's
 let previewGen = 0;       // bumped per render; makes superseded renders bail out
 
 // Stop any playing preview and hide the player. Bumping previewGen also makes
@@ -447,11 +510,15 @@ function stopPreview() {
 
 function ensurePlayer() {
   if (player) return player;
-  roll = rollView($("preview-roll"));
+  roll = rollView($("preview-roll"), { scrollbar: $("preview-scroll") });
+  activeRoll = roll;
   player = midiPlayer($("preview-bar"), {
-    onTick: (t) => roll.draw(t == null ? null : player.beatAt(t)),
+    onTick: (t) => activeRoll && activeRoll.draw(t == null ? null : player.beatAt(t)),
+    onStop: () => { if (row && !player.playing) row.btn.setPressed(false); },
+    onPlay: () => { if (row) row.btn.setPressed(true); },
   });
   seekOnRoll($("preview-roll"), roll, player);  // click or drag on the roll moves the playhead
+  zoomOnRoll($("preview-roll"), roll);          // pinch or ⌘ + scroll zooms, a double-click shows it all
   window.addEventListener("resize", () => roll.draw(player.playing || player.time ? player.beatAt(player.time) : null));
   window.addEventListener("tabridge-theme", () => roll.repaint());
   window.TabridgeRoll.onSchemeChange(() => roll.repaint());
@@ -459,7 +526,9 @@ function ensurePlayer() {
   window.readySetPlayer = { peak: () => player.peak(), get time() { return player.time; },
                             get delay() { return outputDelay(player.ctx); },   // what the head trails the sound by
                             get playing() { return player.playing; }, get beat() { return player.beatAt(player.time); },
-                            get page() { return roll.page; }, get head() { return roll.head; } };
+                            get page() { return roll.page; }, get head() { return roll.head; },
+                            get span() { return roll.span; }, get whole() { return roll.whole; },
+                            get from() { return roll.from; } };
   return player;
 }
 
@@ -472,22 +541,18 @@ async function loadPreview() {
   const semitones = transpose.value;
   ensurePlayer().unlock();                  // inside the click, before any await
   const at = player.playing ? player.time : 0;
-  $("preview").disabled = true;
-  $("preview").textContent = "Loading…";
   try {
-    setStatus("Rendering preview…");
+    if ($("player-host").hidden) setStatus("Loading…");
     const bytes = await buildBytes("mid", semitones);
     if (myGen !== previewGen) return;
-    setStatus("Loading sounds…");
     if (!(await player.load(bytes)) || myGen !== previewGen) return;
     $("player-host").hidden = false;
+    $("take").hidden = false;
     roll.setSong(JSON.parse(midi_build_notes_json(bytes, 0)));
     player.play(at);
-    setStatus(`Preview ready (${semitones >= 0 ? "+" : ""}${semitones} st). Play/seek below.`);
+    setStatus("");
   } catch (err) {
     if (myGen === previewGen) setStatus(`Preview failed: ${err.message || err}`, true);
-  } finally {
-    if (myGen === previewGen) { $("preview").disabled = false; $("preview").textContent = "Preview"; }
   }
 }
 
@@ -496,8 +561,6 @@ $("file").addEventListener("change", (e) => {
   pickFile(file);
   e.target.value = ""; // let the same file be re-picked
 });
-
-$("preview").addEventListener("click", () => { if (selected) loadPreview(); });
 
 function downloadBytes(bytes, name) {
   const blob = new Blob([bytes], { type: "application/octet-stream" });

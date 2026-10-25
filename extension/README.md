@@ -4,7 +4,7 @@ Formerly tabridge; the code and command ids keep that name.
 
 Build a song straight into the Live Set you have open: right-click a track/clip
 slot/scene → **Ready Set: Import a song…**, open a Guitar Pro or MusicXML file (or
-search online: Mutopia always, BitMidi/FreeMIDI only when you tick "Include
+search online: Mutopia always, BitMidi/FreeMIDI only when you turn on "Include
 fan-made MIDI (fine for practice, not for release)"), set a transpose, and the tracks, notes, and a per-track
 **Pitch** device appear in your project.
 
@@ -43,7 +43,7 @@ You can add your own search source without changing the extension. At startup
 the host loads every CommonJS module (`*.js` or `*.cjs`) in the `sources`
 folder of the extension's storage directory (the SDK's
 `environment.storageDirectory`). The extension makes the folder, and the import
-window shows it with a Copy button: open **Sources** next to the search box.
+window shows it with a copy icon: open **Sources** next to the search box.
 Since Ableton Live 12.4.15 an extension can't read anywhere else. A dev run
 with no storage directory (`npm start`) uses `~/.ready-set/sources/` instead.
 
@@ -69,7 +69,7 @@ Guitar Pro and MusicXML go through the same parser as a file you open. `notesJso
 `{ tempo, tracks: [{ name, isDrums, notes: [{ pitch, start, dur, velocity }] }],
 sections?: [{ name, start, length }] }`, with `start`, `dur` and `length` in
 beats. A module's results appear in search next to the built-in sources (always
-searched, not tied to the fan-made MIDI checkbox), get the same inline intro,
+searched, not tied to the fan-made MIDI switch), get the same inline intro,
 preview and Build, and are labelled with its `label`. A module that fails to
 load or has the wrong shape is skipped and logged. With no modules installed,
 nothing changes. Modules run inside the extension host with full Node access,
@@ -93,5 +93,6 @@ npm run package             # produce a distributable .ablx
 ```
 
 Shares its look with the website via the design system in
-`../shared/vendor/design/` (tokens, with the fonts inlined as data URLs) and
-`../shared/roll.js`, both injected into the modal at build time (see `build.ts`).
+`../shared/vendor/design/` (tokens with the fonts inlined as data URLs, the
+value box, the controls and the icons) and `../shared/roll.js`, all injected
+into the modal at build time (see `build.ts`).

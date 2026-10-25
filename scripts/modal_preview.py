@@ -31,8 +31,11 @@ def modal_html(state):
     vb_css = (DESIGN / "valuebox.css").read_text()
     vb_js = re.sub(r"^export ", "", (DESIGN / "valuebox.js").read_text(), flags=re.M)
     valuebox = "(function(){\n" + vb_js + "\nwindow.DesignValueBox = { valueBox };\n})();"
-    html = (html.replace("/*__TOKENS__*/", tokens).replace("/*__VALUEBOX_CSS__*/", vb_css)
-            .replace("/*__ROLL__*/", roll).replace("/*__VALUEBOX__*/", valuebox))
+    css = vb_css + "\n" + (DESIGN / "controls.css").read_text() + "\n" + (DESIGN / "iconbutton.css").read_text()
+    ib_js = re.sub(r"^export ", "", (DESIGN / "iconbutton.js").read_text(), flags=re.M)
+    icons = "(function(){\n" + ib_js + "\nwindow.DesignIcons = { iconSvg, iconButton };\n})();"
+    html = (html.replace("/*__TOKENS__*/", tokens).replace("/*__VALUEBOX_CSS__*/", css)
+            .replace("/*__ROLL__*/", roll).replace("/*__VALUEBOX__*/", valuebox).replace("/*__ICONS__*/", icons))
     return html.replace("'__STATE__'", json.dumps(state))
 
 
@@ -63,6 +66,8 @@ def main():
                         "error": "Couldn't read notes.txt: parse failed: not MusicXML", "selectedUid": None},
         "results": {"mode": "results", "results": results, "query": "bach", "uploads": True, "semitones": 2,
                     "error": "", "selectedUid": "mutopia_1", "intro": None},
+        "sources": {"mode": "start", "results": [], "query": "", "uploads": True, "semitones": 0, "error": "",
+                    "selectedUid": None, "sourcesDir": "~/Music/Ready Set/sources"},
         "preview": {"mode": "preview", "results": [], "query": "", "uploads": False, "semitones": 2, "error": "",
                     "selectedUid": "file_0", "previewFrom": "start", "preview": sample_preview()},
     }
@@ -79,6 +84,9 @@ def main():
                 if name == "results":   # open the inline intro roll
                     page.click(".res-play[data-inline]")
                     page.wait_for_timeout(400)
+                if name == "sources":   # the sources tip, its folder just copied
+                    page.click("#srcs-btn")
+                    page.evaluate("document.getElementById('srcs-copy').innerHTML = window.DesignIcons.iconSvg('check')")
                 page.screenshot(path=str(SHOTS / f"modal-{name}-{scheme}.png"))
                 page.close()
             ctx.close()

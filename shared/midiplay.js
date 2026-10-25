@@ -12,6 +12,7 @@
 //
 //   const roll = rollView(canvas);  roll.setSong(notesJson);  roll.draw(beat | null);
 //   seekOnRoll(canvas, roll, player);  // click or drag on the roll moves the playhead
+//   zoomOnRoll(canvas, roll);          // pinch or ⌘ + scroll zooms, a double-click shows it all
 //
 // The bank is fetched once and kept in the Cache API; bump SF_VERSION when a design sync
 // changes gm.sf3.
@@ -297,75 +298,159 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
 }
 
 // ---- a piano roll that follows the playhead: `beats` at a time (default 32, eight bars of
-// 4/4), paging on as the playhead leaves the view. Drawn with the shared TabridgeRoll
+// 4/4), turning the page as the playhead leaves the view. Drawn with the shared TabridgeRoll
 // (roll.js), per the design system's roll.md: pitched notes shaded by pitch, the sounding
 // ones at full accent with an ink outline, the playhead a thin accent line. Drums stay out.
-export function rollView(canvas, { beats: span = 32 } = {}) {
+// With `scrollbar` (an empty element under the roll), zoomed in it scrolls like Rearranged's
+// parts strip: only the bars on show are drawn, and the element holds a real scrollbar over
+// the whole song (a canvas as wide as a long song zoomed in would be too big to draw).
+export function rollView(canvas, { beats: span = 32, scrollbar = null } = {}) {
   const R = window.TabridgeRoll;
   const ctx = canvas.getContext("2d");
-  let pal = null, notes = [], page = -1, pageNotes = [], range = [48, 72], last = null;
-
-  function setPage(n) {
-    if (n === page) return;
-    page = n;
-    const from = n * span, to = from + span;
-    pageNotes = notes.filter((x) => x.start < to && x.start + x.dur > from);
-    const ps = (pageNotes.length ? pageNotes : notes).map((x) => x.pitch);
+  let pal = null, notes = [], range = [48, 72, 48, 72], last = null, end = span;
+  let from = 0;                                    // the first beat on show
+  let spacer = null;
+  if (scrollbar) {
+    scrollbar.classList.add("roll-scrollbar");
+    spacer = document.createElement("div");
+    scrollbar.replaceChildren(spacer);
+    // a drag on the scrollbar (or a sideways scroll on it) moves the view through the song
+    scrollbar.addEventListener("scroll", () => {
+      const total = spacer.offsetWidth;
+      const to = total ? (scrollbar.scrollLeft / total) * view.whole : 0;
+      if (Math.abs(to - from) < 1e-6) return;     // the view set it itself
+      from = to;
+      paint(last);
+    });
+  }
+  const maxFrom = () => Math.max(0, view.whole - span);
+  // the scrollbar's length and place follow the zoom and the view
+  function syncBar() {
+    if (!scrollbar) return;
+    const w = scrollbar.clientWidth;
+    const total = span >= view.whole ? w : (w * view.whole) / span;
+    spacer.style.width = `${total}px`;
+    scrollbar.classList.toggle("whole", span >= view.whole);
+    scrollbar.scrollLeft = (from / view.whole) * total;
+  }
+  // the pitch rows: the song's own span, at least two octaves, a little room above and below
+  function setRange() {
+    const ps = notes.map((x) => x.pitch);
     const nlo = ps.length ? Math.min(...ps) : 60, nhi = ps.length ? Math.max(...ps) : 60;
     let lo = nlo - 2, hi = nhi + 2;
     if (hi - lo < 24) { const pad = Math.ceil((24 - (hi - lo)) / 2); lo -= pad; hi += pad; }
     range = [lo, hi, nlo, nhi];
   }
 
+  function paint(beat) {
+    pal = pal || R.palette(canvas);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), box = canvas.getBoundingClientRect();
+    if (!box.width || !box.height) return;
+    const cw = Math.round(box.width * dpr), ch = Math.round(box.height * dpr);
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = box.width, H = box.height, to = from + span;
+    ctx.fillStyle = pal.ground; ctx.fillRect(0, 0, W, H);
+    if (!notes.length) return;
+    const [lo, hi, nlo, nhi] = range, row = H / (hi - lo + 1);
+    const x = (b) => ((b - from) / span) * W;
+    R.bands(ctx, pal, 0, 0, W, lo, hi, row, true);
+    ctx.fillStyle = pal.line;                      // bar lines
+    for (let b = Math.ceil(from / 4) * 4; b <= to; b += 4) ctx.fillRect(Math.round(x(b)), 0, 1, H);
+    for (const n of notes) {
+      if (n.start >= to || n.start + n.dur <= from) continue;
+      const s = Math.max(n.start, from), e = Math.min(n.start + n.dur, to);
+      const now = beat != null && beat >= n.start && beat < n.start + n.dur;
+      R.note(ctx, pal, x(s), (hi - n.pitch) * row, x(e) - x(s), row, R.shade(n.pitch, nlo, nhi), now);
+    }
+    if (beat != null && beat >= from && beat <= to) {
+      ctx.fillStyle = pal.acc;
+      ctx.fillRect(Math.round(x(beat)), 0, 1.5, H);
+    }
+  }
+
   const view = {
     /** the notes-JSON of the piece ({ tracks: [{ isDrums, notes: [{ pitch, start, dur }] }] }, beats) */
     setSong(song) {
       notes = (song?.tracks || []).filter((t) => !t.isDrums).flatMap((t) => t.notes);
-      page = -1;
+      end = Math.max(4, ...(song?.tracks || []).flatMap((t) => t.notes.map((x) => x.start + x.dur)));
+      setRange();
+      from = 0;
       view.draw(last);
     },
-    get page() { return page; },
+    /** which page of `span` beats is on show */
+    get page() { return Math.floor(from / span + 1e-6); },
+    /** beats on show at once; the whole song is `whole` */
+    get span() { return span; },
+    get whole() { return Math.ceil(end / 4) * 4; },
+    /** the first beat on show */
+    get from() { return from; },
+    /** zoom to `beats` on show (a bar up to the whole song): around the playhead while it
+     *  plays, around the middle of the view otherwise */
+    setSpan(beats) {
+      const mid = last ?? from + span / 2;
+      span = Math.max(4, Math.min(view.whole, Math.round(beats)));
+      from = Math.max(0, Math.min(maxFrom(), mid - span / 2));
+      syncBar();
+      paint(last);
+    },
+    /** move the view sideways by `px` pixels (a sideways scroll on the roll) */
+    scrollBy(px) {
+      if (span >= view.whole) return;
+      const box = canvas.getBoundingClientRect();
+      from = Math.max(0, Math.min(maxFrom(), from + (px / (box.width || 1)) * span));
+      syncBar();
+      paint(last);
+    },
     /** the beat the playhead was last drawn at (null: none drawn) */
     get head() { return last; },
-    /** the beat at `frac` (0 left edge, 1 right edge) of the page on show, kept a
-     *  hair inside it so a click at an edge doesn't turn the page */
+    /** the beat at `frac` (0 left edge, 1 right edge) of the view, kept a hair inside it so
+     *  a click at an edge doesn't turn the page */
     beatAt(frac) {
-      const from = Math.max(0, page) * span;
       const b = from + Math.max(0, Math.min(1, frac || 0)) * span;
       return Math.min(from + span - 0.01, from > 0 ? Math.max(from + 0.01, b) : b);
     },
-    /** draw the page holding `beat` (null: the first page, no playhead) */
+    /** draw with the playhead at `beat`, turning the page as it leaves the view (null: back
+     *  at the start, no playhead). A view scrolled away from the playhead stays put. */
     draw(beat = null) {
+      const out = (b) => b != null && (b < from || b >= from + span);
+      const was = from;
+      if (beat == null) from = 0;
+      else if (out(beat) && !out(last)) from = Math.min(maxFrom(), Math.floor(beat / span) * span);
       last = beat;
-      pal = pal || R.palette(canvas);
-      const dpr = Math.min(window.devicePixelRatio || 1, 2), box = canvas.getBoundingClientRect();
-      if (!box.width || !box.height) return;
-      const cw = Math.round(box.width * dpr), ch = Math.round(box.height * dpr);
-      if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const W = box.width, H = box.height;
-      setPage(Math.max(0, Math.floor((beat ?? 0) / span)));
-      ctx.fillStyle = pal.ground; ctx.fillRect(0, 0, W, H);
-      if (!notes.length) return;
-      const [lo, hi, nlo, nhi] = range, row = H / (hi - lo + 1), from = page * span;
-      R.bands(ctx, pal, 0, 0, W, lo, hi, row, true);
-      ctx.fillStyle = pal.line;                      // bar lines
-      for (let b = 0; b <= span; b += 4) ctx.fillRect(Math.round((b / span) * W), 0, 1, H);
-      for (const n of pageNotes) {
-        const s = Math.max(n.start, from), e = Math.min(n.start + n.dur, from + span);
-        const x = ((s - from) / span) * W, w = ((e - s) / span) * W;
-        const now = beat != null && beat >= n.start && beat < n.start + n.dur;
-        R.note(ctx, pal, x, (hi - n.pitch) * row, w, row, R.shade(n.pitch, nlo, nhi), now);
-      }
-      if (beat != null) {
-        ctx.fillStyle = pal.acc;
-        ctx.fillRect(Math.round(((beat - from) / span) * W), 0, 1.5, H);
-      }
+      if (from !== was || (scrollbar && !spacer.style.width)) syncBar();
+      paint(beat);
     },
     /** colours changed (theme, scheme): resolve them again and redraw */
-    repaint() { pal = null; view.draw(last); },
+    repaint() { pal = null; syncBar(); paint(last); },
   };
   return view;
+}
+
+// ---- zoom, as in Rearranged's parts editor: pinch or ⌘/Ctrl + scroll on the roll zooms in
+// and out, a double-click shows the whole song (another one goes back to eight bars).
+export function zoomOnRoll(canvas, roll) {
+  const wheel = (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;            // a trackpad pinch arrives as Ctrl + wheel
+    e.preventDefault();
+    roll.setSpan(roll.span * Math.exp(e.deltaY * 0.004));   // a mouse notch (100) is about a third
+  };
+  // a sideways scroll on the roll (a trackpad swipe, or Shift + wheel) moves through the song
+  const side = (e) => {
+    if (e.ctrlKey || e.metaKey || !roll.scrollBy) return;
+    const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+    if (!dx || roll.span >= roll.whole) return;
+    e.preventDefault();
+    roll.scrollBy(dx);
+  };
+  const dbl = () => roll.setSpan(roll.span >= roll.whole ? 32 : roll.whole);
+  canvas.addEventListener("wheel", wheel, { passive: false });
+  canvas.addEventListener("wheel", side, { passive: false });
+  canvas.addEventListener("dblclick", dbl);
+  return () => {
+    canvas.removeEventListener("wheel", wheel); canvas.removeEventListener("wheel", side);
+    canvas.removeEventListener("dblclick", dbl);
+  };
 }
 
 // ---- click or drag on the roll to move the playhead (the design system's playhead.js).

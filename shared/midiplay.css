@@ -5,4 +5,14 @@
 .midiplay .midiplay-seek { flex: 1 1 120px; min-width: 80px; gap: 0; }
 .midiplay .midiplay-seek input[type="range"] { margin: 0; }
 .midiplay .midiplay-seek input[type="range"]:disabled { cursor: default; opacity: .45; }
-.midiplay-time { flex: none; color: var(--ink-mut); font: 12px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.midiplay-time { flex: none; color: var(--ink-mut); font: 13px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+/* the roll's scrollbar (rollView's `scrollbar`): under the roll, over the whole song, shown
+   while zoomed in; styled so it stays on screen (macOS hides plain ones until you scroll) */
+.roll-scrollbar { overflow-x: auto; overflow-y: hidden; height: 12px; overscroll-behavior-x: contain;
+  scrollbar-width: thin; scrollbar-color: var(--ink-mut) transparent; }
+.roll-scrollbar > div { height: 1px; }
+.roll-scrollbar.whole { visibility: hidden; }
+.roll-scrollbar::-webkit-scrollbar { height: 8px; }
+.roll-scrollbar::-webkit-scrollbar-track { background: var(--band); }
+.roll-scrollbar::-webkit-scrollbar-thumb { background: var(--ink-mut); }
+.roll-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--acc); }

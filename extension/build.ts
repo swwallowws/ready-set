@@ -34,10 +34,17 @@ const tokensPlugin: esbuild.Plugin = {
       const vbJs = (await fs.promises.readFile(path.join(design, "valuebox.js"), "utf8")).replace(/^export /gm, "");
       if (/^\s*(import|export)\b/m.test(vbJs)) throw new Error("valuebox.js has an import/export that wasn't inlined");
       const valuebox = `(function(){\n${vbJs}\nwindow.DesignValueBox = { valueBox };\n})();`;
+      // The icons and the fill square (the design's controls), the same way.
+      const ibCss = await fs.promises.readFile(path.join(design, "iconbutton.css"), "utf8");
+      const ctlCss = await fs.promises.readFile(path.join(design, "controls.css"), "utf8");
+      const ibJs = (await fs.promises.readFile(path.join(design, "iconbutton.js"), "utf8")).replace(/^export /gm, "");
+      if (/^\s*(import|export)\b/m.test(ibJs)) throw new Error("iconbutton.js has an import/export that wasn't inlined");
+      const icons = `(function(){\n${ibJs}\nwindow.DesignIcons = { iconSvg, iconButton };\n})();`;
       return {
         contents: html
           .replace("/*__TOKENS__*/", () => tokens)
-          .replace("/*__VALUEBOX_CSS__*/", () => vbCss)
+          .replace("/*__VALUEBOX_CSS__*/", () => vbCss + "\n" + ctlCss + "\n" + ibCss)
+          .replace("/*__ICONS__*/", () => icons)
           .replace("/*__ROLL__*/", () => roll)
           .replace("/*__VALUEBOX__*/", () => valuebox),
         loader: "text",

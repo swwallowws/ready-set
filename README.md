@@ -40,7 +40,7 @@ Your own files are the main input: Ready Set converts what you already have, and
 the files are parsed locally (in the browser, or in the extension host) and
 never uploaded. Online search is secondary. Mutopia's scores are public domain;
 BitMidi and FreeMIDI hold fan-made transcriptions of copyrighted songs, so they
-stay off until you tick **Include fan-made MIDI (fine for practice, not for
+stay off until you turn on **Include fan-made MIDI (fine for practice, not for
 release)**. The **Sources** note beside it lists which sites are searched. The Ableton
 extension can also load your own local source modules (see
 [`extension/README.md`](extension/README.md)).
@@ -74,8 +74,9 @@ host fetches over the network).
 
 ## Web app
 
-A local page: drop in a Guitar Pro or MusicXML file (or search online), choose `.als`
-or `.mid` plus a transpose, preview, download. The WASM does all the parsing and
+A local page: search online or drop in a Guitar Pro or MusicXML file. What you pick
+opens playing, with a transpose, and downloads as an Ableton Live set (`.als`) or
+MIDI (`.mid`). The WASM does all the parsing and
 encoding in the browser. A small Python proxy forwards the allow-listed source
 requests for online search so the browser can get around CORS, and it runs
 FreeMIDI's two-step cookie download server-side.

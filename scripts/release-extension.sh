@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Releases the Ableton Live extension in one go: builds the .ablx from main, tags
-# v<version> (from extension/manifest.json), publishes a GitHub release with the
-# file attached and your notes, then redeploys the website, whose "Coming soon"
-# becomes the download (scripts/extension-link.mjs).
+# v<version> (from extension/manifest.json) and publishes a GitHub release with the
+# file attached and your notes. The showcase links the latest release.
 #
 # Packaging runs here rather than in CI because it needs Ableton's Extensions SDK
 # (extension/vendor/, which may not be redistributed).
@@ -38,5 +37,4 @@ file="$ext/Ready-Set-$version.ablx"
 git -C "$root" tag -a "$tag" -m "Ready Set extension $tag"
 git -C "$root" push origin "$tag"
 gh release create "$tag" "$file" --repo swwallowws/ready-set --title "Ready Set $tag" --notes-file "$notes"
-gh workflow run ci.yml --repo swwallowws/ready-set --ref main
-echo "released $tag: https://github.com/swwallowws/ready-set/releases/tag/$tag (site redeploying)"
+echo "released $tag: https://github.com/swwallowws/ready-set/releases/tag/$tag"
