@@ -76,7 +76,8 @@ host fetches over the network).
 
 A local page: search online or drop in a Guitar Pro or MusicXML file. What you pick
 opens playing, with a transpose, and downloads as an Ableton Live set (`.als`) or
-MIDI (`.mid`). The WASM does all the parsing and
+MIDI (`.mid`). The roll scrolls with the bar under it and zooms with a pinch or
+⌘ and scroll; a double-click shows the whole song. The WASM does all the parsing and
 encoding in the browser. A small Python proxy forwards the allow-listed source
 requests for online search so the browser can get around CORS, and it runs
 FreeMIDI's two-step cookie download server-side.
