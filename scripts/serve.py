@@ -77,15 +77,17 @@ class Handler(SimpleHTTPRequestHandler):
     def proxy(self):
         query = urllib.parse.urlparse(self.path).query
         target = urllib.parse.parse_qs(query).get("url", [""])[0]
-        host = urllib.parse.urlparse(target).hostname or ""
-        if host not in ALLOWED:
+        parts = urllib.parse.urlparse(target)
+        host = parts.hostname or ""
+        if parts.scheme not in ("http", "https") or host not in ALLOWED:
             self.send_error(403, f"host not allowed: {host}")
             return
         try:
             # curl handles gzip (--compressed) and HTTP 103 Early Hints, which
             # urllib chokes on.
             body = subprocess.run(
-                ["curl", "-sS", "-f", "--compressed", "-m", "30", "-A", UA, target],
+                ["curl", "-sS", "-f", "--compressed", "--proto", "=http,https",
+                 "-m", "30", "-A", UA, target],
                 check=True, capture_output=True,
             ).stdout
         except subprocess.CalledProcessError as e:
