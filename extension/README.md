@@ -39,44 +39,6 @@ file input and drag and drop).
   flatten here**. For full-fidelity articulations, use the website's `.als`
   export instead (same engine, different output).
 
-## Local source modules
-
-You can add your own search source without changing the extension. At startup
-the host loads every CommonJS module (`*.js` or `*.cjs`) in the `sources`
-folder of the extension's storage directory (the SDK's
-`environment.storageDirectory`). The extension makes the folder, and the import
-window shows it with a copy icon: open **Sources** next to the search box.
-Since Ableton Live 12.4.15 an extension can't read anywhere else. A dev run
-with no storage directory (`npm start`) uses `~/.ready-set/sources/` instead.
-
-A module exports:
-
-```js
-module.exports = {
-  id: "my-source",          // stable, unique
-  label: "My source",       // shown on result rows, filters and the Sources list
-  async search(query) {     // up to 25 hits
-    return [{ id: "42", title: "Song", artist: "Artist", tracks: 3 }];  // artist, tracks optional
-  },
-  async load(id) {          // one of:
-    return { gp: bytes };              // a Guitar Pro file (.gp, .gpx, .gp3-5), Uint8Array or Buffer
-    // return { musicxml: text };      // MusicXML, as a string
-    // return { midi: bytes };         // Standard MIDI File bytes
-    // return { notesJson: json };     // Ready Set notes-JSON, see below
-  },
-};
-```
-
-Guitar Pro and MusicXML go through the same parser as a file you open. `notesJson` is the same shape the core's `midi_build_notes_json` returns:
-`{ tempo, tracks: [{ name, isDrums, notes: [{ pitch, start, dur, velocity }] }],
-sections?: [{ name, start, length }] }`, with `start`, `dur` and `length` in
-beats. A module's results appear in search next to the built-in sources (always
-searched, not tied to the fan-made MIDI switch), get the same inline intro,
-preview and Build, and are labelled with its `label`. A module that fails to
-load or has the wrong shape is skipped and logged. With no modules installed,
-nothing changes. Modules run inside the extension host with full Node access,
-so only install code you trust. Restart the extension (or Live) after adding
-one.
 
 ## Develop
 
@@ -89,7 +51,7 @@ allow redistribution). Get `ableton-extensions-sdk-1.0.0-beta.0.tgz` and
 npm install                 # installs the SDK + CLI from vendor/ + build tools
 npm run wasm                # (re)build the Rust core -> pkg/ (needs wasm-pack)
 npm run build               # typecheck + bundle -> dist/extension.js (+ wasm)
-npm test                    # local source module hook (needs pkg/)
+npm test                    # window server, fresh-set check, instrument picks
 npm start                   # build, then run in a connected Live via the CLI
 npm run package             # produce a distributable .ablx
 ```

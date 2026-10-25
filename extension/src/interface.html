@@ -9,107 +9,119 @@
 /*__VALUEBOX_CSS__*/
 * { box-sizing:border-box; }
 html, body { height:100%; margin:0; }
-body { background:var(--ground); color:var(--ink); font:13px/1.5 var(--font-sans); font-variant-numeric:tabular-nums;
+/* The same scale as Session Notes' window, so the two read as one family inside Ableton Live:
+   12px text, 11px labels, 10px tags, controls 24px tall, spacing on 8 / 16.
+   The window is 400 x 420 (extension.ts). Few lines and boxes: space does the grouping. */
+body { background:var(--ground); color:var(--ink); font:12px/1.4 var(--font-sans); font-variant-numeric:tabular-nums;
   -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; }
-/* header: the website's wordmark bar, with the tagline where the site has its mode switch */
-.head { padding:var(--space) 14px; border-bottom:var(--hairline); background:var(--ground-2);
-  display:flex; align-items:center; gap:var(--space); }
-.wordmark { font:700 16px/1 var(--font-mono); display:flex; align-items:center; gap:var(--space); margin-right:auto; }
-.wordmark svg { width:16px; height:16px; }
-.tagline { font:500 12px/1 var(--font-mono); color:var(--ink-mut); }
-.view { flex:1 1 auto; min-height:0; overflow:auto; padding:14px; }
-.cap { display:block; font:500 11px/1.4 var(--font-mono); letter-spacing:.08em; text-transform:uppercase;
-  color:var(--ink-mut); margin-bottom:var(--space); }
-input[type=text] { width:100%; padding:7px 9px; background:var(--ground-2); border:var(--hairline);
-  border-radius:var(--radius); color:var(--ink); font:13px var(--font-sans); outline:none; }
+.iconbutton { --iconbutton-size:24px; --iconbutton-glyph:14px; }
+.iconbutton[data-size="s"] { --iconbutton-size:20px; --iconbutton-glyph:12px; }
+.ds-check > span { font-size:12px; line-height:16px; gap:8px; }
+.ds-check > span::before { width:13px; height:13px; }
+/* header: the wordmark, and Close on the right (the window's only way out besides Build) */
+.head { flex:0 0 auto; height:40px; padding:0 8px 0 16px; display:flex; align-items:center; gap:8px; }
+.wordmark { font:700 12px/1 var(--font-mono); display:flex; align-items:center; gap:8px; margin-right:auto; }
+.wordmark svg { width:12px; height:12px; }
+.head .iconbutton { border:0; background:none; color:var(--ink-mut); }
+.head .iconbutton:hover { background:none; color:var(--ink); }
+.view { flex:1 1 auto; min-height:0; overflow:auto; padding:8px 16px 16px; }
+/* the start: the two ways in, centred in the window */
+.view.centre { display:flex; flex-direction:column; justify-content:center; gap:32px; padding-bottom:40px; }
+.group { display:grid; gap:10px; }
+.group .cap { margin:0; }
+.caprow { display:flex; align-items:center; justify-content:space-between; }
+.cap { display:block; font:600 11px/1.3 var(--font-mono); letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-mut); margin-bottom:8px; }
+input[type=text] { width:100%; height:24px; padding:0 8px; background:var(--ground-2); border:var(--hairline);
+  border-radius:var(--radius); color:var(--ink); font:12px var(--font-sans); outline:none; }
 input[type=text]:focus-visible, button:focus-visible, .drop:focus-within { outline:2px solid var(--acc); outline-offset:1px; }
 input[type=checkbox] { accent-color:var(--acc); }
-.row { display:flex; gap:6px; }
-button { font:500 12px var(--font-sans); padding:7px 12px; border-radius:var(--radius); border:var(--hairline);
+.row { display:flex; gap:8px; }
+button { font:12px/1 var(--font-sans); height:24px; padding:0 12px; border-radius:var(--radius); border:var(--hairline);
   background:var(--ground-2); color:var(--ink); cursor:pointer; white-space:nowrap; }
 button:hover { background:var(--band); }
-button.primary { background:var(--ink); color:var(--ground); border-color:var(--ink); font-weight:600; }
+button.primary { background:var(--ink); color:var(--ground); border-color:var(--ink); font-weight:700; }
 button.primary:hover { background:var(--ink); opacity:.85; }
 button:disabled, button.primary:disabled { background:var(--ground-2); color:var(--ink-mut); border-color:var(--line); cursor:default; opacity:1; }
 button[aria-pressed="true"] { border-color:var(--acc); color:var(--acc); }
 button[aria-pressed="true"]:hover { background:var(--ground-2); }
 
-/* find: the search leads, the options under it, your own file as one quiet line, results below (as the studio) */
-.find { display:grid; gap:10px; }
-.search { display:flex; gap:6px; }
-.search input[type=text] { font-size:15px; padding:9px 11px; border-color:var(--ink-mut); }
-.search .iconbutton { --iconbutton-size:40px; height:auto; align-self:stretch; }
-.opt-row { display:flex; align-items:center; gap:var(--space); }
-.opt-row .ds-check { flex:1 1 auto; min-width:0; }
-.drop { display:flex; justify-self:center; align-items:baseline; gap:10px; flex-wrap:wrap; max-width:100%;
-  border:1px dashed var(--ink-mut); padding:8px 12px; color:var(--ink-mut); font-size:12px; cursor:pointer; }
+/* find: one search field with its icon inside, the fan-made switch under it */
+.field { position:relative; }
+.field input[type=text] { height:28px; padding:0 32px 0 10px; border-color:var(--line); }
+.field .iconbutton { position:absolute; right:2px; top:2px; border:0; background:none; }
+/* your own file: a quiet line (the whole window takes a dropped file) */
+.drop { display:flex; align-items:center; gap:10px; color:var(--ink-mut); cursor:pointer; }
+.drop svg { width:16px; height:16px; flex:none; }
 .drop b { color:var(--ink); font-weight:600; }
-.drop .fmt { font:11px var(--font-mono); }
-.drop:hover, .drop.over { border-style:solid; border-color:var(--acc); }
-.drop.over { background:var(--band); }
-/* "Sources": a small disclosure; the list shows on hover, focus, or tap */
-.srcs { position:relative; margin-left:auto; flex:0 0 auto; }
+.drop u { text-decoration-color:var(--line); text-underline-offset:3px; }
+.drop .fmt { display:block; font:10px var(--font-mono); margin-top:2px; }
+.drop:hover u, .drop.over u { color:var(--ink); text-decoration-color:var(--acc); }
+.drop.over b { color:var(--acc); }
+/* "Sources": a small disclosure; the list shows over the window on hover, focus, or tap */
+.srcs { position:relative; flex:0 0 auto; }
 .srcs-btn { display:inline-flex; align-items:center; gap:4px; border:none; background:transparent; padding:1px 0;
-  color:var(--ink-mut); font:500 11px/1.4 var(--font-mono); text-transform:uppercase; letter-spacing:.06em; cursor:help; }
+  color:var(--ink-mut); font:500 10px/1.4 var(--font-mono); text-transform:uppercase; letter-spacing:.06em; cursor:help; }
 .srcs-btn:hover { background:transparent; color:var(--ink); }
 .srcs-btn svg { width:12px; height:12px; }
-.srcs .tip { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:5; width:250px; padding:8px 10px;
-  background:var(--ground); border:var(--hairline); color:var(--ink-mut); font:11px/1.5 var(--font-mono);
-  flex-direction:column; gap:3px; }
+.srcs .tip { display:none; position:absolute; right:0; top:calc(100% + 6px); z-index:5; width:280px; padding:12px 14px;
+  background:var(--ground-2); box-shadow:0 12px 32px -8px rgb(0 0 0 / .45); color:var(--ink-mut); font:11px/1.5 var(--font-mono);
+  flex-direction:column; gap:6px; }
 .srcs .tip b { color:var(--ink); font-weight:600; margin-right:4px; }
 .srcs:hover .tip, .srcs:focus-within .tip, .srcs.open .tip { display:flex; }
 /* Covers the gap under the button, so the tip stays open on the way to its copy button. */
 .srcs .tip::before { content:""; position:absolute; left:0; right:0; top:-7px; height:7px; }
-.srcs .own { margin-top:4px; padding-top:6px; border-top:var(--hairline); }
-.srcs .own .dir { display:flex; align-items:flex-start; gap:6px; margin-top:3px; }
-.srcs .own code { flex:1; min-width:0; color:var(--ink); font:inherit; overflow-wrap:anywhere; }
 
 /* results: the count, "by source" when more than one answered (the filter line only on request,
    as plain words), then rows: play first (hear it here), the piece, its source, a chevron (it opens) */
-.results-line { display:flex; align-items:baseline; gap:var(--space); margin-top:4px; color:var(--ink-mut); font:12px/1.4 var(--font-mono); }
+.results-line { display:flex; align-items:baseline; gap:8px; margin-top:16px; color:var(--ink-mut); font:11px/1.4 var(--font-mono); }
+.results-line .srcs { margin-left:auto; }
 .by-source, .filters button { border:0; background:none; padding:0; color:var(--ink-mut); font:inherit; cursor:pointer;
   text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; }
 .by-source:hover, .filters button:hover { background:none; color:var(--ink); }
 .by-source[aria-expanded="true"] { color:var(--ink); }
-.filters { display:flex; flex-wrap:wrap; gap:14px; margin-top:6px; font:12px/1.4 var(--font-mono); }
+.filters { display:flex; flex-wrap:wrap; gap:12px; margin-top:4px; font:11px/1.4 var(--font-mono); }
 .filters button[aria-pressed="true"] { color:var(--ink); border:0; text-decoration-color:var(--acc); }
-.results { margin-top:8px; border-top:var(--hairline); }
-.res { display:flex; flex-direction:column; border-bottom:var(--hairline); }
+.results { margin-top:4px; }
+.res { display:flex; flex-direction:column; }
 .res:hover { background:var(--band); }
-.res-top { display:flex; align-items:center; gap:10px; padding:6px 2px; }
-.res-main { flex:1; min-width:0; display:flex; align-items:baseline; gap:10px; border:0; background:none; padding:2px 0;
+.res-top { display:flex; align-items:center; gap:8px; height:32px; padding:0 4px; }
+.res-main { flex:1; min-width:0; height:auto; display:flex; align-items:baseline; gap:8px; border:0; background:none; padding:0;
   text-align:left; cursor:pointer; color:var(--ink); font:inherit; }
 .res-main:hover { background:none; }
-.res .t { flex:1; min-width:0; font-weight:600; }
-.res .src { flex:0 0 auto; color:var(--ink-mut); font:12px/1.4 var(--font-mono); text-transform:uppercase; letter-spacing:.04em; }
+.res .t { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.res .src { flex:0 0 auto; color:var(--ink-mut); font:10px/1.4 var(--font-mono); text-transform:uppercase; letter-spacing:.04em; }
 .res .go { flex:none; align-self:center; color:var(--ink-mut); }
 .res:hover .go, .res-main:focus-visible .go { color:var(--acc); }
 .res.loaded { padding-bottom:8px; }
-canvas.iroll { width:calc(100% - 4px); margin:0 2px; height:56px; display:block; border:var(--hairline); }
+canvas.iroll { width:calc(100% - 8px); margin:0 4px; height:48px; display:block; }
 
-.foot { padding:10px 14px; border-top:var(--hairline); background:var(--ground-2); display:flex; align-items:center; gap:var(--space); }
-.foot .tr { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+/* the open piece's bar: Transpose and Build into Set */
+.foot { flex:0 0 auto; height:44px; padding:0 16px 8px; display:flex; align-items:center; gap:8px; }
+.foot[hidden] { display:none; }
+.foot .tr { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
 .foot .cap { margin:0; }
-.err { color:var(--ink); font-weight:600; font-size:12px; margin-top:10px; }
+#tr { font-size:12px; }
+.err { color:var(--ink); font-weight:600; font-size:11px; margin-top:8px; }
 .err::before { content:"Error: "; }
-.hint { color:var(--ink-mut); font-size:11px; margin-top:10px; }
+.hint { color:var(--ink-mut); font-size:11px; margin-top:8px; }
 .hint b { color:var(--ink); font-weight:600; }
-/* the open piece: a way back, its name, the roll playing, Transpose and Build into Set below */
-.back { border:none; background:transparent; color:var(--ink-mut); padding:0; font:13px var(--font-sans); cursor:pointer; }
+/* the open piece: a way back, Play beside its name, the roll filling the rest, Transpose and Build below */
+.view.pv { display:flex; flex-direction:column; }
+.back { align-self:flex-start; border:none; background:transparent; color:var(--ink-mut); height:auto; padding:0; font:12px var(--font-sans); cursor:pointer; }
 .back:hover { color:var(--ink); background:transparent; }
-.pv-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-top:8px; }
-.pv-title { font:700 15px var(--font-sans); }
-.pv-sub { color:var(--ink-mut); font:12px var(--font-mono); }
-canvas#roll { width:100%; height:176px; display:block; margin-top:10px; border:var(--hairline); cursor:pointer; touch-action:none; }
-.pv-ctl { display:flex; align-items:center; gap:10px; margin-top:8px; }
+.pv-head { display:flex; align-items:center; gap:8px; margin-top:10px; min-width:0; }
+.pv-title { font:600 12px var(--font-sans); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pv-sub { flex:none; color:var(--ink-mut); font:11px var(--font-mono); }
+canvas#roll { flex:1 1 auto; min-height:120px; width:100%; display:block; margin-top:8px; cursor:pointer; touch-action:none; }
 /* While a step runs in place: the window dims behind one quiet line. */
 .busy { position:fixed; inset:0; z-index:10; display:grid; place-items:center;
   background:color-mix(in srgb, var(--ground) 72%, transparent);
-  color:var(--ink); font:500 12px var(--font-mono); text-transform:uppercase; letter-spacing:.06em; }
+  color:var(--ink); font:500 11px var(--font-mono); text-transform:uppercase; letter-spacing:.06em; }
 .busy[hidden] { display:none; }
 /* Late rows from a slow source, offered while something plays. */
-.more-ready { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px;
-  padding:8px 10px; border:var(--hairline); font:12px var(--font-mono); color:var(--ink-mut); }
+.more-ready { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;
+  padding:4px 4px 4px 8px; border:var(--hairline); font:11px var(--font-mono); color:var(--ink-mut); }
 .more-ready[hidden] { display:none; }
 </style>
 <script>/*__ROLL__*/</script>
@@ -121,7 +133,7 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:10px; border:v
   <div class="wordmark">
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 12.5C4 12.5 5 4 8.5 4c2.6 0 3.4 5 6 5" stroke="var(--acc)" stroke-width="2"/></svg>Ready Set
   </div>
-  <span class="tagline">simply jam.</span>
+  <span id="head-x"></span>
 </div>
 <div class="view" id="view"></div>
 <div class="foot" id="foot"></div>
@@ -497,18 +509,12 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:10px; border:v
       '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.25" fill="none" stroke="currentColor"/><path d="M6 5.2v3.3M6 3.3v.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Sources</button>' +
       '<span class="tip" role="tooltip" id="srcs-tip">' +
         '<span><b>Mutopia</b> public-domain scores, always searched</span>' +
-        (S.localLabels || []).map((l) => '<span><b>' + esc(l) + '</b> local source module, always searched</span>').join('') +
         '<span><b>BitMidi</b> fan-made MIDI, searched when included</span>' +
         '<span><b>FreeMIDI</b> fan-made MIDI, searched when included. Free and ad-supported: support it at freemidi.org</span>' +
-        (S.sourcesDir
-          ? '<span class="own"><b>Your own</b> drop a source module (.js) here, then reopen Ableton Live' +
-            '<span class="dir"><code id="srcs-dir">' + esc(S.sourcesDir) + '</code>' +
-            ib('srcs-copy', 'copy', 'Copy', { size: 's' }) + '</span></span>'
-          : '') +
       '</span></span>';
   const uploadsBox = () =>
-    '<div class="opt-row"><label class="ds-check"><input type="checkbox" id="uploads"' + (S.uploads ? ' checked' : '') + ' />' +
-    '<span>Include fan-made MIDI (fine for practice, not for release)</span></label>' + sourcesTip() + '</div>';
+    '<label class="ds-check"><input type="checkbox" id="uploads"' + (S.uploads ? ' checked' : '') + ' />' +
+    '<span>Include fan-made MIDI (fine for practice, not for release)</span></label>';
   let srcsOutside = null;
   function wireSources() {
     const box = document.getElementById('srcs'), btn = document.getElementById('srcs-btn');
@@ -520,23 +526,6 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:10px; border:v
     if (srcsOutside) document.removeEventListener('pointerdown', srcsOutside);
     srcsOutside = (e) => { if (!box.contains(e.target)) set(false); };
     document.addEventListener('pointerdown', srcsOutside);
-    // Copy the sources folder: the clipboard API where the webview allows it,
-    // a hidden textarea where it doesn't.
-    const copy = document.getElementById('srcs-copy');
-    if (copy) copy.onclick = (e) => {
-      e.preventDefault();
-      const done = () => { copy.innerHTML = icon('check'); copy.title = 'Copied';
-        setTimeout(() => { copy.innerHTML = icon('copy'); copy.title = 'Copy'; }, 1200); };
-      const fallback = () => {
-        const ta = document.createElement('textarea');
-        ta.value = S.sourcesDir; ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.select();
-        try { if (document.execCommand('copy')) done(); } catch (_) { /* nothing to copy with */ }
-        document.body.removeChild(ta);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(S.sourcesDir).then(done, fallback);
-      else fallback();
-    };
   }
 
   // ---- views --------------------------------------------------------------
@@ -550,9 +539,13 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:10px; border:v
 
   function render() {
     players = [];
+    // Close lives in the header on every view; the bar under the window only holds
+    // the open piece's Transpose and Build into Set.
+    document.getElementById('head-x').innerHTML = ib('cancel', 'close', 'Close');
+    view.classList.remove('centre', 'pv');
+    foot.hidden = S.mode !== "preview";
     if (S.mode === "preview") renderPiece(); else renderFind();
-    const c = document.getElementById('cancel');
-    if (c) c.onclick = () => send({ action: "cancel" });
+    document.getElementById('cancel').onclick = () => send({ action: "cancel" });
   }
 
   function renderFind() {
@@ -577,7 +570,8 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:10px; border:v
     }).join('');
     const resultsBlock = S.mode !== 'results' ? '' :
       '<div class="results-line"><span>' + (results.length ? plural(results.length, 'result') : 'No results.') + '</span>' +
-        (srcs.length > 1 ? '<button type="button" class="by-source" id="by-source" aria-expanded="' + filterOpen + '">by source</button>' : '') + '</div>' +
+        (srcs.length > 1 ? '<button type="button" class="by-source" id="by-source" aria-expanded="' + filterOpen + '">by source</button>' : '') +
+        sourcesTip() + '</div>' +
       (srcs.length > 1 && filterOpen
         ? '<div class="filters" role="group" aria-label="Show results from">' + ['all', ...srcs].map((f) =>
             '<button type="button" data-filter="' + f + '" aria-pressed="' + (filter === f) + '">' + (f === 'all' ? 'All' : esc(srcLabel(f))) + '</button>').join('') + '</div>'
@@ -585,15 +579,22 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:10px; border:v
       (rows ? '<div class="results">' + rows + '</div>' : '') +
       (LIVE && S.pending && S.pending.length ? '<div class="hint pending">Still searching ' + esc(S.pending.join(', ')) + '…</div>' : '') +
       '<div class="more-ready" id="more-ready" hidden></div>';
-    view.innerHTML =
-      '<div class="find">' +
-        '<div class="search"><input type="text" id="q" placeholder="Song or artist" aria-label="Song or artist" value="' + esc(S.query) + '" />' + ib('go', 'search', 'Search') + '</div>' +
-        uploadsBox() +
-        '<label class="drop" id="drop" for="file"><b>Or drop a tab or a score</b><span class="fmt">.gp · .gpx · .gp3 to .gp5 · .musicxml</span>' +
-          '<input type="file" id="file" accept=".gp,.gpx,.gp3,.gp4,.gp5,.musicxml,.xml" hidden /></label>' +
-        (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
-      '</div>' + resultsBlock;
-    foot.innerHTML = '<div style="flex:1"></div>' + ib('cancel', 'close', 'Close');
+    // The start: two ways in, centred. "Find a song" with Sources on its line, above
+    // the field, so the fan-made line stays on one line; then your own file. Once
+    // you've searched, the field and the switch stay on top, the results under
+    // them, and Sources moves to the results line (a file still drops anywhere).
+    const field = '<div class="field"><input type="text" id="q" placeholder="Song or artist" aria-label="Song or artist" value="' + esc(S.query) + '" />' + ib('go', 'search', 'Search') + '</div>';
+    const err = S.error ? '<div class="err">' + esc(S.error) + '</div>' : '';
+    const start = S.mode !== 'results';
+    view.classList.toggle('centre', start);
+    view.innerHTML = start
+      ? '<div class="group"><div class="caprow"><span class="cap">Find a song</span>' + sourcesTip() + '</div>' + field + uploadsBox() + err + '</div>' +
+        '<div class="group"><span class="cap">Or bring your own</span>' +
+          '<label class="drop" id="drop" for="file">' +
+            '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 11v2.5h11V11"/></svg>' +
+            '<span><b>Drop a tab or a score</b> anywhere here, or <u>choose one</u><span class="fmt">.gp · .gpx · .gp3 to .gp5 · .musicxml</span></span>' +
+            '<input type="file" id="file" accept=".gp,.gpx,.gp3,.gp4,.gp5,.musicxml,.xml" hidden /></label></div>'
+      : '<div class="group">' + field + uploadsBox() + err + '</div>' + resultsBlock;
 
     // Filter rows by source without re-rendering (keeps any playing audio).
     function applyFilter(f) { filter = f;
@@ -651,11 +652,11 @@ canvas#roll { width:100%; height:176px; display:block; margin-top:10px; border:v
   function renderPiece() {
     const P = S.preview || { p: [], tempo: 120, beats: 32 };
     const sub = Math.round(P.tempo) + ' BPM' + (P.truncated ? ' · the first part' : '');
+    view.classList.add('pv');
     view.innerHTML =
       '<button class="back" id="back">← ' + (S.previewFrom === 'results' ? 'results' : 'back') + '</button>' +
-      '<div class="pv-head"><span class="pv-title">' + esc(P.label) + '</span><span class="pv-sub">' + esc(sub) + '</span></div>' +
+      '<div class="pv-head">' + ib('play', 'play', 'Play') + '<span class="pv-title">' + esc(P.label) + '</span><span class="pv-sub">' + esc(sub) + '</span></div>' +
       '<canvas id="roll" aria-label="Piano roll of the piece; click or drag to move the playhead"></canvas>' +
-      '<div class="pv-ctl">' + ib('play', 'play', 'Play') + '</div>' +
       (S.error ? '<div class="err">' + esc(S.error) + '</div>' : '') +
       '<div class="hint">' + BUILT_HINT + '</div>';
     foot.innerHTML = transposeFoot() + '<button class="primary" id="build2">Build into Set</button>';

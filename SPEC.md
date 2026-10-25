@@ -64,8 +64,6 @@ src/
 
 - **File imports (main path):** MusicXML (uncompressed), Standard MIDI, Guitar Pro. Parsed locally, never uploaded.
 - **Online search:** Mutopia (public domain, always on); BitMidi and FreeMIDI (user uploads, opt-in, personal use only). Each yields a `.mid`.
-- **Local source modules (extension only):** optional user-installed modules that add a search source and return MIDI bytes or notes-JSON. See `extension/README.md`.
-
 ---
 
 ## 5. MIDI generation
@@ -130,7 +128,7 @@ The pipeline emits a `.als` directly by cloning a real Live 12 template: one MID
 3. **WASM build:** `wasm-pack` browser target (+ thin proxy) and Node target (extension).
 4. **Ableton:** manual template, then the `.als` emitter.
 5. **Sources:** MusicXML (`sources/musicxml.rs`) and Guitar Pro GP3-GP7 (`sources/guitarpro.rs`, via the Rust `guitarpro` crate), both file imports on the website and in the extension. Done 2026-09-26.
-6. **Extension:** Live Extensions SDK modal with search, preview, and build into the open Set; local source modules.
+6. **Extension:** Live Extensions SDK modal with search, preview, and build into the open Set.
 
 ---
 
@@ -143,4 +141,4 @@ Your own files are the main input. Mutopia's scores are public domain. BitMidi a
 ## 11. Adding a source
 
 - A **file format** goes in `src/sources/` as a `Source` implementation, plus WASM bindings in `lib.rs`.
-- A **search source** for the extension can live outside this repo as a local source module (`extension/README.md`).
+- A **search source** goes in `shared/sources.js` (search URL and result normalization), used by both the website and the extension.

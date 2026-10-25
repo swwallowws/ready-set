@@ -41,9 +41,7 @@ the files are parsed locally (in the browser, or in the extension host) and
 never uploaded. Online search is secondary. Mutopia's scores are public domain;
 BitMidi and FreeMIDI hold fan-made transcriptions of copyrighted songs, so they
 stay off until you turn on **Include fan-made MIDI (fine for practice, not for
-release)**. The **Sources** note beside it lists which sites are searched. The Ableton
-extension can also load your own local source modules (see
-[`extension/README.md`](extension/README.md)).
+release)**. The **Sources** note lists which sites are searched.
 
 Guitar Pro and MusicXML carry notated rhythm and articulations
 (slides, bends, vibrato), so their `.als` keeps full fidelity. Guitar Pro files

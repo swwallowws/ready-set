@@ -17,9 +17,9 @@ repo `swwallowws/ready-set-archive`. Do not push that history here.
   as ableton-session-notes does. Their licence forbids distributing the SDK
   "outside of your application".
 - [x] Real-song tab fixture removed; the tests use self-made data.
-- [x] Third-party source code removed. The Ableton extension instead offers a
-  neutral hook for local source modules (see `extension/README.md`); nothing
-  source-specific ships.
+- [x] Third-party source code removed; nothing source-specific ships. The
+  extension loads no outside code (an earlier hook for local source modules was
+  removed: running code dropped into a folder isn't safe).
 - [x] Guitar Pro tests write their own files, so no third-party tabs are checked in.
 - [x] No secrets: searched for keys, tokens, passwords and private keys.
 - [x] README describes the file-first flow, sources and their licences.

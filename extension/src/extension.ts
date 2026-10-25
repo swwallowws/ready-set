@@ -12,11 +12,6 @@ import {
   firstFreemidiArtist, mergeInterleaved, recLabel,
   freemidiSearchUrl, freemidiArtistPageUrl, mutopiaSearchUrl,
 } from "../../shared/sources.js";
-// Optional user-installed search sources (see localSources.ts / README).
-import {
-  localSourceDirs, loadLocalSources, localSourceKey, searchLocalSource, localNotesJson, ensureSourceDir,
-  type LocalSourceModule,
-} from "./localSources.js";
 import { startWindowServer } from "./windowServer.js";
 import { isFreshSet } from "./freshSet.js";
 import { instrumentFor, voiceFamily } from "./instruments.js";
@@ -84,18 +79,16 @@ const HDRS: Record<string, string> = {
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
 };
 
-// "midi" | "freemidi" | "mutopia" | "file", or "local-<id>" for a row from a
-// local source module.
+// "midi" | "freemidi" | "mutopia" | "file".
 type Source = string;
 // A merged result set holds rows from every source, so uid ("<source>_<id>")
 // is the collision-proof identity used everywhere (ids can collide across
 // sources). MIDI-bearing rows carry either downloadUrl (BitMidi/Mutopia, direct)
 // or freemidiId (FreeMIDI, fetched via the proxy's two-step endpoint). tracks is
-// unknown (null) for those until the file is fetched. Local-module rows carry
-// their module's label and the module's own item id (localId).
+// unknown (null) for those until the file is fetched.
 type SearchRec = {
   uid: string; id: number; artist: string; title: string; tracks: number | null; source: Source;
-  downloadUrl?: string; freemidiId?: string; label?: string; localId?: string | number; intro?: any;
+  downloadUrl?: string; freemidiId?: string; label?: string; intro?: any;
   tempo?: number;   // BPM, to one decimal, once the song's file has loaded
 };
 type NoteJson = { pitch: number; start: number; dur: number; velocity: number };
@@ -126,18 +119,10 @@ export function activate(activation: ActivationContext) {
     try { console.log("[tabridge]", ...a); } catch { /* ignore */ }
   };
 
-  // ---- local source modules (optional, user-installed) ---------------------
-  // Loaded once at startup from <storageDirectory>/sources (made if missing,
-  // and shown in the modal's Sources list), or ~/.ready-set/sources on a dev
-  // run with no storage directory. None found: nothing changes.
+  // An installed extension has a storage directory; a dev run (npm start) has none.
   const storageDirectory = (() => {
     try { return (context as any).environment?.storageDirectory as string | undefined; } catch { return undefined; }
   })();
-  const localDirs = localSourceDirs(storageDirectory);
-  ensureSourceDir(localDirs[0], dbg);
-  const localSources: LocalSourceModule[] = loadLocalSources(localDirs, { log: dbg });
-  dbg("local source folders", localDirs.join(", "), "loaded", localSources.length);
-  const localByKey = new Map(localSources.map((m) => [localSourceKey(m), m]));
 
   // ---- fetching (direct; the serve.py proxy on a dev run) ------------------
   // One fetch path for the online archives. On a dev run (no storage
@@ -213,25 +198,17 @@ export function activate(activation: ActivationContext) {
   // Resolve a record to the flat notes-JSON (at concert pitch; transpose is
   // applied later, via a Pitch device in the Set, or live in the preview). One
   // fetch+build per record, cached across prefetch / Preview / Build. Branches
-  // on the source: the archives yield a .mid that the WASM core reads; a local
-  // source module hands back MIDI bytes or notes-JSON itself. All end at the
-  // SAME notes-JSON shape.
+  // on the source: every archive yields a .mid that the WASM core reads into
+  // the SAME notes-JSON shape.
   const notesCache = new Map<string, string>();
   async function ensureNotesJson(rec: SearchRec): Promise<string> {
     const hit = notesCache.get(rec.uid);
     if (hit) return hit;
     let json: string;
-    const local = localByKey.get(rec.source);
     if (rec.source === "file") {
       // Opened files are parsed up front (the "file" action), so they're always
       // cached; a miss means the cache was cleared.
       throw new Error("the opened file is no longer loaded; open it again");
-    } else if (local) {
-      json = await localNotesJson(local, rec.localId!, {
-        midi: (b) => tabridge.midi_build_notes_json(b, 0),
-        gp: (b) => tabridge.guitarpro_build_notes_json(b, 0),
-        musicxml: (t) => tabridge.musicxml_build_notes_json(t, 0),
-      });
     } else {
       // FreeMIDI needs the proxy's two-step endpoint; BitMidi/Mutopia have a
       // direct URL.
@@ -266,11 +243,10 @@ export function activate(activation: ActivationContext) {
   // How much longer a live window waits for a source that missed the search
   // (BitMidi has taken 32 s), in the background, before giving up on it.
   const LATE_TIMEOUT_MS = 40000;
-  // Only these sources get their previews prefetched during search (BitMidi and
-  // any local source module); the archive downloads (FreeMIDI two-step,
-  // Mutopia) are too slow to block on, so those rows fall back to an on-click
-  // load.
-  const prefetches = (source: string) => source === "midi" || localByKey.has(source);
+  // Only BitMidi gets its previews prefetched during search; the archive
+  // downloads (FreeMIDI two-step, Mutopia) are too slow to block on, so those
+  // rows fall back to an on-click load.
+  const prefetches = (source: string) => source === "midi";
   function buildPreview(notesJson: string, label: string, windowBeats: number | null) {
     const song: SongJson = JSON.parse(notesJson);
     let rows: [number, number, number, number, number, number][] = [];
@@ -471,15 +447,12 @@ export function activate(activation: ActivationContext) {
   // start (open a file, or search) -> preview -> build, or
   // start -> results -> preview -> build. The user's own file is the main path;
   // online search is secondary, and its user-upload sources (BitMidi, FreeMIDI)
-  // are opt-in and personal-use only. Mutopia and any installed local source
-  // modules are always searched.
+  // are opt-in and personal-use only. Mutopia is always searched.
   //
   // The window is served from a local server (windowServer.ts), so search,
   // load and preview run while it stays open; only Build closes it. If the
   // server can't start, the window falls back to closing and reopening for
   // each step (a data: URL modal), with the host's progress dialogs between.
-  const localLabels = localSources.map((m) => m.label);
-  const sourcesDir = localDirs[0] ?? "";
   context.commands.registerCommand("tabridge.import", async () => {
     let mode: "start" | "results" | "preview" = "start";
     let results: SearchRec[] = [];
@@ -504,7 +477,7 @@ export function activate(activation: ActivationContext) {
     let searchSeq = 0, pending: string[] = [];
     let late: { name: string; rows: Promise<SearchRec[]> }[] = [];
     const state = () => ({
-      mode, results, query, uploads, semitones, error, selectedUid, previewFrom, localLabels, sourcesDir, live,
+      mode, results, query, uploads, semitones, error, selectedUid, previewFrom, live,
       searchSeq, pending,
       intro: mode === "results" ? intro : null,
       preview: mode === "preview" ? preview : null,
@@ -573,10 +546,10 @@ export function activate(activation: ActivationContext) {
           await withProgress(
             "Searching…",
             async (upd) => {
-              const names = ["Mutopia", ...localLabels, ...(uploads ? ["BitMidi", "FreeMIDI"] : [])];
+              const names = ["Mutopia", ...(uploads ? ["BitMidi", "FreeMIDI"] : [])];
               await upd(`Searching ${names.join(", ")}…`, 20);
-              // One search box. Mutopia (public domain) and local source
-              // modules always; the user-upload archives only when opted in.
+              // One search box. Mutopia (public domain) always; the
+              // user-upload archives only when opted in.
               // Each is time-boxed so a slow or failed backend can't hold up the
               // results; whatever has arrived shows, the rest just don't appear
               // this time. Interleave so each present source is visible near
@@ -602,7 +575,6 @@ export function activate(activation: ActivationContext) {
               };
               const lists = await Promise.all([
                 timed("Mutopia", searchMutopia(query)),
-                ...localSources.map((m) => timed(m.label, searchLocalSource(m, query) as Promise<SearchRec[]>)),
                 uploads ? timed("BitMidi", searchBitmidi(query)) : none,
                 uploads ? timed("FreeMIDI", searchFreemidi(query)) : none,
               ]);
@@ -683,7 +655,7 @@ export function activate(activation: ActivationContext) {
       for (;;) {
         const url = server ? server.url : `data:text/html,${encodeURIComponent(page())}`;
         let payload: any = null;
-        try { payload = JSON.parse(await context.ui.showModalDialog(url, 460, 620)); }
+        try { payload = JSON.parse(await context.ui.showModalDialog(url, 400, 420)); }
         catch { payload = null; } // closed with no result
         if (!payload || payload.action === "cancel") break;
 

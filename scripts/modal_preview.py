@@ -67,7 +67,7 @@ def main():
         "results": {"mode": "results", "results": results, "query": "bach", "uploads": True, "semitones": 2,
                     "error": "", "selectedUid": "mutopia_1", "intro": None},
         "sources": {"mode": "start", "results": [], "query": "", "uploads": True, "semitones": 0, "error": "",
-                    "selectedUid": None, "sourcesDir": "~/Music/Ready Set/sources"},
+                    "selectedUid": None},
         "preview": {"mode": "preview", "results": [], "query": "", "uploads": False, "semitones": 2, "error": "",
                     "selectedUid": "file_0", "previewFrom": "start", "preview": sample_preview()},
     }
@@ -75,7 +75,7 @@ def main():
     with sync_playwright() as pw:
         b = pw.chromium.launch(channel="chrome", headless=True)
         for scheme in ("light", "dark"):
-            ctx = b.new_context(color_scheme=scheme, viewport={"width": 460, "height": 620})
+            ctx = b.new_context(color_scheme=scheme, viewport={"width": 400, "height": 420})
             for name, st in states.items():
                 page = ctx.new_page()
                 page.on("pageerror", lambda e: errors.append(str(e)))
