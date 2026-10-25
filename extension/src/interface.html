@@ -583,7 +583,8 @@ canvas#roll { flex:1 1 auto; min-height:120px; width:100%; display:block; margin
     // the field, so the fan-made line stays on one line; then your own file. Once
     // you've searched, the field and the switch stay on top, the results under
     // them, and Sources moves to the results line (a file still drops anywhere).
-    const field = '<div class="field"><input type="text" id="q" placeholder="Song or artist" aria-label="Song or artist" value="' + esc(S.query) + '" />' + ib('go', 'search', 'Search') + '</div>';
+    // autocomplete off: Live's webview otherwise drops its own list of past entries under the field
+    const field = '<div class="field"><input type="text" id="q" placeholder="Song or artist" aria-label="Song or artist" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="' + esc(S.query) + '" />' + ib('go', 'search', 'Search') + '</div>';
     const err = S.error ? '<div class="err">' + esc(S.error) + '</div>' : '';
     const start = S.mode !== 'results';
     view.classList.toggle('centre', start);
