@@ -554,11 +554,12 @@ export function activate(activation: ActivationContext) {
           fileRec = { uid: "file_0", id: 0, artist: "", title, tracks: song.tracks.length, source: "file" };
           selectedUid = fileRec.uid;
           preview = buildPreview(fileJson, title, null);
-          previewFrom = "start";
+          // a file dropped over the results goes back to them, not to an empty search
+          previewFrom = mode === "results" ? "results" : "start";
           mode = "preview";
         } catch (e) {
           error = `Couldn't read ${name}: ${String(e)}`;
-          mode = "start";
+          if (mode !== "results") mode = "start";
         }
         return;
       }

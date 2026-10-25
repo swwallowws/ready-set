@@ -3,10 +3,12 @@
 Formerly tabridge; the code and command ids keep that name.
 
 Build a song straight into the Live Set you have open: right-click a track/clip
-slot/scene → **Ready Set: Import a song…**, open a Guitar Pro or MusicXML file (or
-search online: Mutopia always, BitMidi/FreeMIDI only when you turn on "Include
-fan-made MIDI (fine for practice, not for release)"), set a transpose, and the tracks, notes, and a per-track
-**Pitch** device appear in your project.
+slot/scene → **Ready Set: Import a song…**, then search online (Mutopia always,
+BitMidi/FreeMIDI only when you turn on "Include fan-made MIDI (fine for practice,
+not for release)") or drop in a Guitar Pro or MusicXML file. A result's play button
+plays its opening in the list; a click on the result opens it, playing. Set a
+transpose, **Build into Set**, and the tracks, notes, and a per-track **Pitch**
+device appear in your project.
 
 Built on the [Ableton Extensions SDK](https://ableton.github.io/extensions-sdk/)
 (public beta, **Ableton Live 12.4.15 beta or later**). The parsing core is the tabridge Rust

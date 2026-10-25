@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="./shared/midiplay.css" />
 <link rel="stylesheet" href="./shared/vendor/design/themeswitch.css" />
 <link rel="stylesheet" href="./shared/vendor/design/controls.css" />
+<link rel="stylesheet" href="./shared/vendor/design/contact.css" />
 <script>
   // before paint: ?theme= wins, then the mode saved in any of the products (they share it)
   try { let t = new URLSearchParams(location.search).get("theme");
@@ -241,13 +242,16 @@
   </section>
 
 </main>
-<footer class="site-foot">Guitar Pro or MusicXML in, a multi-track Ableton Live set out. Your files stay in this browser.</footer>
+<footer class="site-foot ds-footer"><span>Guitar Pro or MusicXML in, a multi-track Ableton Live set out. Your files stay in this browser.</span><div id="contact"></div></footer>
 
 <script type="module">
   import { valueBox } from "./shared/vendor/design/valuebox.js";
   import { NOTES as notes, BEATS, TOTAL, heroPlayer } from "./hero.js";
   import { themeSwitch } from "./shared/vendor/design/themeswitch.js";
   import { iconButton } from "./shared/vendor/design/iconbutton.js";
+  import { contactForm } from "./shared/vendor/design/contact.js";
+  // "Get in touch" at the footer's right, the form every studio shares
+  contactForm(document.getElementById('contact'), { subject: 'Ready Set: new message' });
   // ---- colour mode: System / Paper / Night, as the design system's symbols ----
   // ?theme= or a saved choice seeds it; the canvas redraws on every change.
   const root = document.documentElement;   // the palette reads the theme's tokens from here
