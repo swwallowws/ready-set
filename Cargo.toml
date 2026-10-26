@@ -22,7 +22,7 @@ flate2 = "1"
 # for wasm32; see third_party/guitarpro/TABRIDGE-PATCH.md.
 guitarpro = { path = "third_party/guitarpro" }
 # Shared Live 12 set (.als) writer, also used by voxmpe.
-expressive-liveset = { git = "https://github.com/swwallowws/expressive-liveset.git", rev = "034837d72666c89493c6471af3a342cbe6d1d8c4" }
+expressive-liveset = { git = "https://github.com/swwallowws/expressive-liveset.git", rev = "4f6cfaf460b33c0f67e9e5d9a1853f7250074ef5" }
 
 # Browser-WASM glue. Pulled in for all targets; cheap and lets lib.rs expose
 # the same entry points natively (for tests) and in-browser.
