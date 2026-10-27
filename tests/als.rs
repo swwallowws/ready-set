@@ -52,3 +52,30 @@ fn emits_valid_als_with_tracks_and_notes() {
         assert!(xml.contains(key), "missing {key}");
     }
 }
+
+/// A tempo change steps at its bar: the set's tempo envelope holds the old tempo up
+/// to it. Live draws a straight line between breakpoints, so without the hold a
+/// set plays at the new tempo from bar 1 (Serenade to a Dream played at 88, not 94).
+#[test]
+fn a_tempo_change_holds_the_old_tempo_until_its_bar() {
+    let mut song = MusicXml::new().parse(XML).expect("parse musicxml");
+    let old = song.tempo;
+    let new = old - 6.0;
+    for t in &mut song.tracks {
+        // the sample is one bar: a second, a copy, brings the change
+        let mut second = t.measures[0].clone();
+        second.tempo = Some(new);
+        t.measures.push(second);
+    }
+    let xml = gunzip(&write_als(&song).expect("write als"));
+    let opts = ParsingOptions { allow_dtd: true, ..ParsingOptions::default() };
+    let d = Document::parse_with_options(&xml, opts).expect("valid XML");
+    let events: Vec<(f64, f64)> = d
+        .descendants()
+        .filter(|n| n.has_tag_name("FloatEvent"))
+        .map(|n| (n.attribute("Time").unwrap().parse().unwrap(), n.attribute("Value").unwrap().parse().unwrap()))
+        .collect();
+    let at_change: Vec<f64> =
+        events.iter().filter(|&&(t, v)| t > 0.0 && (v == old || v == new)).map(|&(_, v)| v).collect();
+    assert_eq!(at_change, [old, new], "the change's breakpoints: hold {old}, then {new} (all: {events:?})");
+}
