@@ -118,7 +118,7 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
 
   const p = {
     ctx: null, synth: null, seq: null, out: null, meter: null, ready: null,
-    loaded: false, playing: false, midi: null, op: 0, _duration: 0,
+    loaded: false, playing: false, midi: null, op: 0, _duration: 0, keyShift: 0,
     /** make and resume the AudioContext: call inside a click or key press, before any await */
     unlock() {
       if (!this.ctx) this.ctx = new AudioContext();
@@ -160,11 +160,13 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
         this.seq.eventHandler.addEvent("songChange", "midiplay-load", () => ok());
         setTimeout(ok, 4000);
       });
+      this.synth.setSystemParameter("keyShift", this.keyShift);
       this.seq.loadNewSongList([{ binary: toBuffer(bytes), fileName: "preview.mid" }]);
       this.seq.loopCount = 0;
       this.seq.pause();
       await changed;
       this.seq.eventHandler.removeEvent("songChange", "midiplay-load");
+      this.synth.setSystemParameter("keyShift", this.keyShift);   // in case the new song reset the synth
       if (my !== this.op) return false;
       this._duration = this.seq.duration || 0;
       try { this.midi = await this.seq.getMIDI(); } catch { this.midi = null; }
@@ -175,6 +177,12 @@ export function midiPlayer(host, { onPlay, onStop, onTick } = {}) {
       this.loaded = true;
       paint();
       return true;
+    },
+    /** play every note but the drums `k` semitones up or down, at once and without reloading:
+     *  the synth's own key shift, so a transpose never stops the music */
+    setKeyShift(k) {
+      this.keyShift = k;
+      this.synth?.setSystemParameter("keyShift", k);
     },
     get duration() { return this._duration; },
     get time() {
@@ -297,6 +305,8 @@ export function rollView(canvas, { beats: span = 32, scrollbar = null } = {}) {
   const R = window.TabridgeRoll;
   const ctx = canvas.getContext("2d");
   let pal = null, notes = [], range = [48, 72, 48, 72], last = null, end = span;
+  let base = [], shift = 0;                        // the song's own notes, and a live transpose on them
+  const shifted = () => (shift ? base.map((n) => ({ ...n, pitch: n.pitch + shift })) : base);
   let from = 0;                                    // the first beat on show
   let spacer = null;
   if (scrollbar) {
@@ -361,11 +371,19 @@ export function rollView(canvas, { beats: span = 32, scrollbar = null } = {}) {
   const view = {
     /** the notes-JSON of the piece ({ tracks: [{ isDrums, notes: [{ pitch, start, dur }] }] }, beats) */
     setSong(song) {
-      notes = (song?.tracks || []).filter((t) => !t.isDrums).flatMap((t) => t.notes);
+      base = (song?.tracks || []).filter((t) => !t.isDrums).flatMap((t) => t.notes);
+      notes = shifted();
       end = Math.max(4, ...(song?.tracks || []).flatMap((t) => t.notes.map((x) => x.start + x.dur)));
       setRange();
       from = 0;
       view.draw(last);
+    },
+    /** every note `k` semitones up or down (a live transpose), the view staying where it is */
+    setShift(k) {
+      shift = k;
+      notes = shifted();
+      setRange();
+      paint(last);
     },
     /** which page of `span` beats is on show */
     get page() { return Math.floor(from / span + 1e-6); },

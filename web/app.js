@@ -98,15 +98,16 @@ site.then(({ proxy }) => {
 });
 
 // Transpose: the design system's value box (-12..+12, default 0), like the hero's.
-// Changing it while a preview is showing re-renders the preview with the new
-// shift; a short wait lets a held step settle first.
-let rerender = 0;
+// The preview is built once at 0 and transposed live by the synth's key shift and
+// the roll's shift, so a change is heard at once and the music never stops.
+// Each newly opened piece starts at 0.
 const transpose = valueBox($("semitones"), {
   min: -12, max: 12, value: 0, labelledBy: "semitones-label",
   format: (v) => (v > 0 ? "+" : "") + v,
-  onChange: () => {
-    clearTimeout(rerender);
-    rerender = setTimeout(() => { if (player && !$("player-host").hidden) loadPreview(); }, 250);
+  onChange: (v) => {
+    if (!player || row) return;               // a row's preview stays at its own key
+    player.setKeyShift(v);
+    roll.setShift(v);
   },
 });
 
@@ -330,6 +331,7 @@ async function rowPlay(r, item, btn, on) {
     mini.setSong(JSON.parse(midi_build_notes_json(bytes, 0)));
     seekOnRoll(canvas, mini, player);
     activeRoll = mini;
+    player.setKeyShift(0);                    // a row plays in the piece's own key
     if (!(await player.load(bytes)) || row !== mine) return;
     player.play(0);
   } catch (err) {
@@ -347,6 +349,7 @@ function openPicked(title, back) {
   stopPreview();
   ensurePlayer().unlock();                  // inside the click, so the preview can sound when it's ready
   activeRoll = roll;
+  transpose.set(0);                         // a new piece starts in its own key
   $("change-pick").textContent = back;
   $("find").hidden = true;
   $("picked").hidden = false;
@@ -532,24 +535,24 @@ function ensurePlayer() {
   return player;
 }
 
-// Build the .mid for the CURRENT Transpose setting, load it into the player and
-// start playback. Re-callable: changing Transpose re-renders with the new shift,
-// from the same moment. The `previewGen` token makes a superseded render ignore
-// its own async callbacks so rapid re-renders can't race.
+// Build the .mid in the piece's own key, load it into the player and start
+// playback; Transpose is applied live on top (see `transpose`). The `previewGen`
+// token makes a superseded render ignore its own async callbacks so rapid
+// re-renders can't race.
 async function loadPreview() {
   const myGen = ++previewGen;
-  const semitones = transpose.value;
   ensurePlayer().unlock();                  // inside the click, before any await
-  const at = player.playing ? player.time : 0;
   try {
     if ($("player-host").hidden) setStatus("Loading…");
-    const bytes = await buildBytes("mid", semitones);
+    const bytes = await buildBytes("mid", 0);
     if (myGen !== previewGen) return;
+    player.setKeyShift(transpose.value);
     if (!(await player.load(bytes)) || myGen !== previewGen) return;
     $("player-host").hidden = false;
     $("take").hidden = false;
     roll.setSong(JSON.parse(midi_build_notes_json(bytes, 0)));
-    player.play(at);
+    roll.setShift(transpose.value);
+    player.play(0);
     setStatus("");
   } catch (err) {
     if (myGen === previewGen) setStatus(`Preview failed: ${err.message || err}`, true);
