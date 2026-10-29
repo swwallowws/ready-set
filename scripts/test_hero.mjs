@@ -29,9 +29,10 @@ near(pitchAt(vib, vib.start + 3 / (4 * VIB_HZ)), 9.6, 1e-9, 'vibrato bottom');
 // the dive: D to D-4, linear in Hz over 90% of the note, then held
 const dive = gs[6];
 near(pitchAt(dive, dive.start), -2, 1e-9, 'dive start');
-const half = dive.start + 0.45 * SPB;
+const len = dive.end - dive.start;
+const half = dive.start + 0.45 * len;
 near(pitchAt(dive, half), 12 * Math.log2((2 ** (-2 / 12) + 2 ** (-6 / 12)) / 2), 1e-9, 'dive halfway, linear in Hz');
-near(pitchAt(dive, dive.start + 0.95 * SPB), -6, 1e-9, 'dive held at its target');
+near(pitchAt(dive, dive.start + 0.95 * len), -6, 1e-9, 'dive held at its target');
 
 // loudness: velocity sets the level, the last 120 ms fade out
 near(loudnessAt(gs[0], 0.01), 1, 1e-9, 'full velocity');
