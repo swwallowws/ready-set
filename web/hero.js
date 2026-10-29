@@ -28,7 +28,7 @@ export const NOTES = [
   { b: 1.25, l: 0.25, p: 1,   v: 0.7, leg: true },
   { b: 1.5,  l: 0.5,  p: -1,  v: 0.8, leg: true },
   { b: 2,    l: 1,    p: OCT, v: 0.9, vib: true },
-  { b: 3,    l: 1,    p: D,   v: 1,   bend: -4 },
+  { b: 3,    l: 0.75, p: D,   v: 1,   bend: -4 },
 ];
 export const BEATS = 4, BPM = 100, SPB = 60 / BPM, TOTAL = BEATS * SPB;
 /** MIDI note of p = 0 (E2). */
