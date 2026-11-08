@@ -26,9 +26,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+          components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Rust tests
         run: cargo test
+      - name: Clippy, warnings as errors
+        run: cargo clippy --all-targets -- -D warnings
       - name: The library builds for the browser (WebAssembly)
         run: cargo build --lib --release --target wasm32-unknown-unknown
       - uses: actions/setup-node@v4
