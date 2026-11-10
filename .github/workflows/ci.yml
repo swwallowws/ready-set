@@ -101,11 +101,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned, with Cargo.lock: the same source builds the same wasm, so version.json's
+      # fingerprint (which the showcase's picture check reads) changes only when the site
+      # does. Bumping either is a deliberate change: re-record the showcase loop after.
+      - uses: dtolnay/rust-toolchain@1.99.1
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: v0.15.1
       - name: Build and stage the site
         run: bash scripts/deploy-web.sh --stage _site
       - name: Stamp the build (the showcase compares it with its pictures)
